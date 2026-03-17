@@ -3209,4 +3209,74 @@ function b64ToUint8(b64){
   return arr;
 }
 
+// ─────────────────────────────────────────────
+// FIREBASE
+// ─────────────────────────────────────────────
+const FB_CFG={databaseURL:"https://deprati-novedades-default-rtdb.firebaseio.com/"};
+firebase.initializeApp(FB_CFG);
+const db=firebase.database();
+const REF_R=db.ref('records');
+const REF_WK=db.ref('weeks');
+const REF_PV=db.ref('proveedores');
+const REF_CS=db.ref('custom_stores');
 
+function fbSetStatus(state,msg,last){
+  const dot=document.getElementById('fb-dot'),st=document.getElementById('fb-status'),la=document.getElementById('fb-last');
+  if(dot)dot.className='fb-dot '+state;if(st)st.textContent=msg;if(last&&la)la.textContent='🕐 '+last;
+}
+function toFbObj(arr){const o={};arr.forEach(r=>{if(r&&r.id)o[r.id]=r;});return o;}
+
+function loadStorage(){
+  fbSetStatus('wait','⏳ Cargando...');
+  try{CUSTOM_STORES=JSON.parse(localStorage.getItem('dcs')||'[]');}catch(e){CUSTOM_STORES=[];}
+  CUSTOM_STORES.forEach(s=>{if(!STORES.includes(s))STORES.push(s);});
+  renderCustomStoresList();
+  REF_R.once('value').then(snap=>{
+    const val=snap.val();
+    if(val){R.rt=val.rt?Object.values(val.rt):[];R.dg=val.dg?Object.values(val.dg):[];R.rs=val.rs?Object.values(val.rs):[];R.req=val.req?Object.values(val.req):[];}
+    else{R={rt:[],dg:[],rs:[],req:[]};}
+    renderRT();renderDG();renderRS();renderREQ();updateBell();
+    fbSetStatus('ok','✅ Conectado',new Date().toLocaleString('es-EC'));
+  }).catch(()=>{
+    try{R=JSON.parse(localStorage.getItem('dr')||'{"rt":[],"dg":[],"rs":[],"req":[]}');}catch(e){R={rt:[],dg:[],rs:[],req:[]};}
+    renderRT();renderDG();renderRS();renderREQ();updateBell();
+    fbSetStatus('err','⚠️ Sin conexión — datos locales','');
+  });
+  REF_WK.once('value').then(snap=>{const val=snap.val();WK=val?Object.values(val):[];}).catch(()=>{try{WK=JSON.parse(localStorage.getItem('dw')||'[]');}catch(e){WK=[];}});
+  REF_PV.once('value').then(snap=>{
+    const val=snap.val();PV=val||{};
+    const pc=Object.keys(PV).length;
+    if(pc){const el=document.getElementById('pst');if(el)el.textContent='✅ '+pc+' proveedores';}
+  }).catch(()=>{try{PV=JSON.parse(localStorage.getItem('dp')||'{}');}catch(e){PV={};}});
+}
+function sR(){
+  const now=new Date().toLocaleString('es-EC');
+  REF_R.set({rt:toFbObj(R.rt),dg:toFbObj(R.dg),rs:toFbObj(R.rs),req:toFbObj(R.req)})
+    .then(()=>{fbSetStatus('ok','✅ Guardado',now);try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}})
+    .catch(()=>{fbSetStatus('err','⚠️ Error al guardar','');try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}});
+}
+function sW(){REF_WK.set(toFbObj(WK)).catch(()=>{try{localStorage.setItem('dw',JSON.stringify(WK));}catch(e){}});}
+function fbSync(){
+  fbSetStatus('wait','⏳ Sincronizando...');
+  REF_R.once('value').then(snap=>{
+    const val=snap.val();
+    if(val){R.rt=val.rt?Object.values(val.rt):[];R.dg=val.dg?Object.values(val.dg):[];R.rs=val.rs?Object.values(val.rs):[];R.req=val.req?Object.values(val.req):[];}
+    renderRT();renderDG();renderRS();renderREQ();updateBell();
+    fbSetStatus('ok','✅ Sincronizado',new Date().toLocaleString('es-EC'));showT('🔄 Datos actualizados');
+  }).catch(()=>{fbSetStatus('err','⚠️ Sin conexión','');showT('⚠️ No se pudo conectar');});
+  REF_WK.once('value').then(snap=>{const val=snap.val();WK=val?Object.values(val):[];});
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+loadStorage();
+buildForm('rt');buildForm('dg');buildForm('rs');buildForm('req');
+// Load OCR async (no bloquea la carga)
+(()=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js';document.head.appendChild(s);})();
+// Register SW
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
+
+</script>
+</body>
+</html>
