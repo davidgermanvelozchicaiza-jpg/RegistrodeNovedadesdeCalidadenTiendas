@@ -16,7 +16,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <style>
@@ -1206,7 +1205,6 @@ function buildForm(tab){
         <button class="pbtn" id="${tab}-scan-btn" onclick="openBarcodeScanner('${tab}')" style="background:#0369a1;margin-top:6px;"><span class="ic">📲</span> Escanear Código</button>
         <div class="pp pp-f1" id="${tab}-p1" title="Click para OCR Lens"></div>
         <div id="${tab}-s1" style="font-size:.75rem;color:#888;margin-top:4px;"></div>
-        <button id="${tab}-f1-clear" class="pbtn" onclick="clearF1('${tab}')" style="display:none;margin-top:4px;background:#dc2626;font-size:.75rem;padding:5px 8px;"><span class="ic">🗑️</span> Descartar Foto 1</button>
       </div>
       <div class="pb">
         <label>📸 Foto del Producto / Novedad</label>
@@ -1221,10 +1219,9 @@ function buildForm(tab){
         </div>
         <!-- Tira de previews con ⭐ principal y botones añadir más -->
         <div class="pp" id="${tab}-p2"></div>
-        <div id="${tab}-f2-addbtns" style="display:none;margin-top:6px;gap:6px;flex-wrap:wrap;">
-          <button class="pbtn" onclick="document.getElementById('${tab}-f2add').click()" style="flex:1;background:#0369a1;font-size:.78rem;padding:6px 8px;"><span class="ic">➕</span> Añadir Galería</button>
+        <div id="${tab}-f2-addbtns" style="display:none;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="pbtn" onclick="document.getElementById('${tab}-f2add').click()" style="flex:1;background:#0369a1;font-size:.78rem;padding:6px 8px;"><span class="ic">➕</span> Añadir desde Galería</button>
           <button class="pbtn" onclick="document.getElementById('${tab}-f2add1').click()" style="flex:1;background:#0369a1;font-size:.78rem;padding:6px 8px;"><span class="ic">📷</span> Añadir Foto</button>
-          <button class="pbtn" onclick="discardAllF2('${tab}')" style="flex:1;background:#dc2626;font-size:.78rem;padding:6px 8px;"><span class="ic">🗑️</span> Descartar Todas</button>
         </div>
       </div>
     </div>
@@ -1485,9 +1482,6 @@ function procF1(tab,file,dataUrl,rawData){
   } else {
     status.innerHTML = `📷 Foto cargada · <span style="color:#0369a1;cursor:pointer;" onclick="openOcr('${src}','${tab}')">🔍 Abrir OCR Lens</span>`;
   }
-  // Show discard button
-  const clrBtn=document.getElementById(tab+'-f1-clear');
-  if(clrBtn) clrBtn.style.display='block';
 }
 
 // ─────────────────────────────────────────────
@@ -1662,26 +1656,6 @@ function setF2Principal(idx,tab){
   showT('⭐ Foto principal actualizada');
 }
 
-
-function clearF1(tab){
-  // Clear foto 1 preview, status, and stored crop
-  const prev=document.getElementById(tab+'-p1');
-  const status=document.getElementById(tab+'-s1');
-  const inp=document.getElementById(tab+'-f1');
-  if(prev) prev.style.backgroundImage='';
-  if(status) status.innerHTML='';
-  if(inp) inp.value='';
-  CS[1]={file:null,tab:null};
-  const clrBtn=document.getElementById(tab+'-f1-clear');
-  if(clrBtn) clrBtn.style.display='none';
-  showT('🗑️ Foto 1 descartada');
-}
-
-function discardAllF2(tab){
-  f2u=[];
-  renderF2Preview(tab);
-  showT('🗑️ Todas las fotos descartadas');
-}
 function delF2(idx,tab){
   f2u.splice(idx,1);
   renderF2Preview(tab);
@@ -2282,15 +2256,80 @@ async function exportXLTienda(){
   if(t==='orig'){ await exportXL('rt'); return; }
   const data = R.rt.filter(r => r._copy && r.tienda === t);
   if(!data.length){ showT('⚠️ Sin datos para exportar'); return; }
-  showT('⏳ Generando Excel…');
-  try{
-    const wb=await buildExcelWB([[data,'Tienda_'+t.substring(0,28)]],false);
-    const fname=`Deprati_RT_${t.replace(/ /g,'_')}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.xlsx`;
-    await saveExcelWB(wb,fname);
-    showT('📊 Excel exportado para '+t);
-  }catch(e){console.error(e);showT('❌ Error: '+e.message);}
+  // Delegates to exportXL infrastructure via a fake mode
+  await _exportXLRaw(data,'Tienda_'+t,false,`Deprati_RT_${t.replace(/ /g,'_')}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.xlsx`);
+  showT('📊 Excel exportado para '+t);
 }
 
+// Shared low-level Excel builder (used by exportXLTienda)
+async function _exportXLRaw(data,sheetName,isDG,filename){
+  const hdr=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso',
+    'EAN/SKU','Cantidad','PVP s/IVA','PVP Total','Motivo','Decisión','Observaciones','Fecha','Foto'];
+  const HDR_FILL={patternType:'solid',fgColor:{rgb:'1F3864'}};
+  const HDR_FONT={bold:true,color:{rgb:'FFFFFF'},sz:10};
+  const HDR_ALIGN={horizontal:'center',vertical:'center',wrapText:true};
+  const BORDER={top:{style:'thin',color:{rgb:'AAAAAA'}},bottom:{style:'thin',color:{rgb:'AAAAAA'}},
+    left:{style:'thin',color:{rgb:'AAAAAA'}},right:{style:'thin',color:{rgb:'AAAAAA'}}};
+  const DAT_FONT={color:{rgb:'000000'},sz:9};
+  const DAT_FILL={patternType:'solid',fgColor:{rgb:'FFFFFF'}};
+
+  const dataRows=[]; let rn=0;
+  sortR(data).forEach(rec=>(rec.eans||[{ean:'',cantidad:'',pvp:''}]).forEach(ean=>{
+    rn++;
+    const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
+    dataRows.push({row:[rn,rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',rec.proveedor||'',rec.ref||'',rec.semIngreso||'',
+      ean.ean||'',ean.cantidad||'',parseFloat(ean.pvp||0)||'',tot||'',
+      rec.motivo||'',rec.decision||'',rec.observaciones||'',rec.fecha||'',' '],rec});
+  }));
+
+  const aoaRows=[hdr,...dataRows.map(d=>d.row)];
+  const ws=XLSX.utils.aoa_to_sheet(aoaRows);
+  const nCols=hdr.length;
+
+  // Apply header styles
+  for(let c=0;c<nCols;c++){
+    const addr=XLSX.utils.encode_cell({r:0,c});
+    if(!ws[addr]) ws[addr]={t:'s',v:hdr[c]};
+    ws[addr].s={font:HDR_FONT,fill:HDR_FILL,border:BORDER,alignment:HDR_ALIGN};
+  }
+  // Apply data styles
+  for(let r=1;r<aoaRows.length;r++){
+    for(let c=0;c<nCols;c++){
+      const addr=XLSX.utils.encode_cell({r,c});
+      if(!ws[addr]) ws[addr]={t:'s',v:''};
+      ws[addr].s={font:DAT_FONT,fill:DAT_FILL,border:BORDER,alignment:{vertical:'center'}};
+    }
+  }
+
+  // Autofit columns
+  const widths=Array(nCols).fill(6);
+  aoaRows.forEach(row=>row.forEach((v,i)=>{const l=String(v||'').length;if(l>widths[i])widths[i]=Math.min(l,50);}));
+  ws['!cols']=widths.map((w,i)=>({wch:i===nCols-1?18:w+2}));
+  ws['!rows']=[{hpt:20},...dataRows.map(()=>({hpt:58}))];
+  ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:0,c:nCols-1}})};
+
+  // Embed photos
+  if(!ws['!images']) ws['!images']=[];
+  for(let i=0;i<dataRows.length;i++){
+    const rec=dataRows[i].rec;
+    if(rec.foto2&&rec.foto2.length>0){
+      try{
+        const src=rec.foto2[0];
+        const b64=src.includes(',')? src.split(',')[1]:src;
+        ws['!images'].push({
+          name:'f'+i+'.jpg',data:b64,opts:{base64:true},
+          position:{type:'twoCellAnchor',attrs:{editAs:'oneCell'},
+            from:{col:nCols-1,row:i+1,colOff:20000,rowOff:20000},
+            to:{col:nCols,row:i+2,colOff:0,rowOff:0}}
+        });
+      }catch(e){}
+    }
+  }
+
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,sheetName);
+  XLSX.writeFile(wb,filename,{cellStyles:true});
+}
 
 // Export PDF solo para la tienda activa (copias)
 async function exportPDFTienda(){
@@ -2877,147 +2916,541 @@ async function exportXL(mode){
   const data=getExpData(mode);
   if(!data.length){showT('⚠️ No hay datos');return;}
   showT('⏳ Generando Excel…');
+
+  // ── Headers ──
   const isDG=(mode==='dg');
-  try{
-    if(mode==='dg'){
-      const devs=data.filter(r=>r.decision==='Devolución'||!r.decision||r.decision==='');
-      const noDevs=data.filter(r=>r.decision==='No Devolución');
-      const wb=await buildExcelWB([[devs,'Devolución'],[noDevs,'No Devolución']],true);
-      await saveExcelWB(wb,`Deprati_${mode}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.xlsx`);
-    } else {
-      const wb=await buildExcelWB([[data,'Novedades']],false);
-      await saveExcelWB(wb,`Deprati_${mode}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.xlsx`);
-    }
-    showT('📊 Excel exportado');
-  }catch(e){console.error(e);showT('❌ Error al exportar: '+e.message);}
-}
-
-// ─────────────────────────────────────────────
-// EXCEL CORE (ExcelJS)
-// ─────────────────────────────────────────────
-async function buildExcelWB(sheets,isDG){
-  const wb=new ExcelJS.Workbook();
-  wb.creator='Deprati';wb.created=new Date();
-
-  // 3 cm row = 85 pt (1 pt ≈ 0.353 mm; 30mm/0.353 ≈ 85)
-  const FOTO_ROW_PT=85;
-  const HDR_ROW_PT=22;
-  // Foto col width in chars (≈ 3cm / ~7px per char ≈ 6 chars but ExcelJS uses pts)
-  // We'll set foto col width to about 4.5cm = ~17 chars
-  const FOTO_COL_W=17;
-
   const hdr=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso',
     'EAN/SKU','Cantidad','PVP s/IVA','PVP Total','Motivo','Decisión','Observaciones','Fecha',
     ...(isDG?['Tabla Asignación','# Ped. Traslado']:[]),'Foto'];
-  const nCols=hdr.length;
 
-  for(const [recs,sheetName] of sheets){
-    const ws=wb.addWorksheet(sheetName,{
-      views:[{showGridLines:false}]  // ← desactivar cuadrícula
-    });
+  // ── Style helpers ──
+  const HDR_FILL={patternType:'solid',fgColor:{rgb:'1F3864'}};
+  const HDR_FONT={bold:true,color:{rgb:'FFFFFF'},sz:10};
+  const HDR_ALIGN={horizontal:'center',vertical:'center',wrapText:true};
+  const HDR_BORDER={top:{style:'thin',color:{rgb:'AAAAAA'}},bottom:{style:'thin',color:{rgb:'AAAAAA'}},
+    left:{style:'thin',color:{rgb:'AAAAAA'}},right:{style:'thin',color:{rgb:'AAAAAA'}}};
+  const DAT_FONT={color:{rgb:'000000'},sz:9};
+  const DAT_FILL={patternType:'solid',fgColor:{rgb:'FFFFFF'}};
+  const DAT_BORDER=HDR_BORDER;
+  const DAT_ALIGN={vertical:'center',wrapText:false};
 
-    // ── Column definitions ──
-    const colDefs=hdr.map((h,i)=>{
-      const isLast=i===nCols-1;
-      // Estimate width from header + data
-      return {header:'',width:isLast?FOTO_COL_W:Math.max(h.length+2,10)};
-    });
-    ws.columns=colDefs;
+  function styleCell(ws,addr,font,fill,border,alignment){
+    if(!ws[addr]) ws[addr]={t:'s',v:''};
+    ws[addr].s={font,fill,border,alignment};
+  }
 
-    // ── Header row (row 1) ──
-    const hdrRow=ws.addRow(hdr);
-    hdrRow.height=HDR_ROW_PT;
-    hdrRow.eachCell((cell)=>{
-      cell.font={bold:true,color:{argb:'FFFFFFFF'},size:10,name:'Calibri'};
-      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1F3864'}};
-      cell.border={
-        top:{style:'thin',color:{argb:'FF000000'}},
-        left:{style:'thin',color:{argb:'FF000000'}},
-        bottom:{style:'thin',color:{argb:'FF000000'}},
-        right:{style:'thin',color:{argb:'FF000000'}}
-      };
-      cell.alignment={horizontal:'center',vertical:'middle',wrapText:true};
-    });
+  function applyStyles(ws,nRows,nCols){
+    // Header row (row 1 = index 0)
+    for(let c=0;c<nCols;c++){
+      const addr=XLSX.utils.encode_cell({r:0,c});
+      styleCell(ws,addr,HDR_FONT,HDR_FILL,HDR_BORDER,HDR_ALIGN);
+    }
+    // Data rows
+    for(let r=1;r<nRows;r++){
+      for(let c=0;c<nCols;c++){
+        const addr=XLSX.utils.encode_cell({r,c});
+        styleCell(ws,addr,DAT_FONT,DAT_FILL,DAT_BORDER,DAT_ALIGN);
+      }
+    }
+    // Autofilter on header row
+    ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:0,c:nCols-1}})};
+  }
 
-    // ── Autofit column widths from header ──
-    const colWidths=hdr.map(h=>h.length+4);
+  function autoColWidths(ws,rows){
+    const nCols=rows[0]?.length||0;
+    const widths=Array(nCols).fill(6);
+    rows.forEach(row=>row.forEach((v,i)=>{
+      const len=String(v||'').length;
+      if(len>widths[i]) widths[i]=Math.min(len,50);
+    }));
+    ws['!cols']=widths.map(w=>({wch:w+2}));
+  }
 
-    // ── Data rows ──
-    let rn=0;
-    const sortedRecs=sortR(recs);
-    for(const rec of sortedRecs){
+  // ── Row builder (returns data array, NO header) ──
+  async function buildDataRows(recs){
+    const rows=[];let rn=0;
+    for(const rec of sortR(recs)){
       for(const ean of (rec.eans||[{ean:'',cantidad:'',pvp:''}])){
         rn++;
         const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
-        const rowData=[
-          rn, rec.semana||'', rec.tienda||'', rec.dpto||'', rec.codigo||'',
-          rec.proveedor||'', rec.ref||'', rec.semIngreso||'',
-          ean.ean||'', ean.cantidad||'', parseFloat(ean.pvp||0)||0, tot||0,
-          rec.motivo||'', rec.decision||'', rec.observaciones||'', rec.fecha||'',
-          ...(isDG?[rec.tablaAsig||'',rec.pedidoTraslado||'']:[]),
-          ''  // Foto placeholder
-        ];
-        // Update col widths
-        rowData.forEach((v,i)=>{
-          if(i===nCols-1) return;
-          const l=String(v||'').length;
-          if(l>colWidths[i]) colWidths[i]=Math.min(l+2,50);
-        });
+        const row=[rn,rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',rec.proveedor||'',rec.ref||'',rec.semIngreso||'',
+          ean.ean||'',ean.cantidad||'',parseFloat(ean.pvp||0)||'',tot||'',
+          rec.motivo||'',rec.decision||'',rec.observaciones||'',rec.fecha||'',
+          ...(isDG?[rec.tablaAsig||'',rec.pedidoTraslado||'']:[]),''];
+        rows.push({row,rec});
+      }
+    }
+    return rows;
+  }
 
-        const dataRow=ws.addRow(rowData);
-        const hasPhoto=rec.foto2&&rec.foto2.length>0;
-        dataRow.height=hasPhoto?FOTO_ROW_PT:18;
+  // ── Build worksheet with images ──
+  async function buildSheet(recs,sheetName){
+    const dataRows=await buildDataRows(recs);
+    const aoaRows=[hdr,...dataRows.map(d=>d.row)];
+    const ws=XLSX.utils.aoa_to_sheet(aoaRows);
+    const nCols=hdr.length;
+    const ROW_H=60; // row height in pixels for image rows
 
-        dataRow.eachCell((cell)=>{
-          cell.font={color:{argb:'FF000000'},size:9,name:'Calibri'};
-          cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFFFF'}};
-          cell.border={
-            top:{style:'thin',color:{argb:'FFAAAAAA'}},
-            left:{style:'thin',color:{argb:'FFAAAAAA'}},
-            bottom:{style:'thin',color:{argb:'FFAAAAAA'}},
-            right:{style:'thin',color:{argb:'FFAAAAAA'}}
-          };
-          cell.alignment={horizontal:'center',vertical:'middle',wrapText:false};
-        });
+    // Set row heights (header=20, data=ROW_H for image)
+    ws['!rows']=[{hpt:20},...dataRows.map(()=>({hpt:ROW_H}))];
 
-        // ── Embed photo in last cell ──
-        if(hasPhoto){
-          try{
-            const src=rec.foto2[0];
-            const b64=src.includes(',')? src.split(',')[1]:src;
-            const ext=src.startsWith('data:image/png')?'png':'jpeg';
-            const imgId=wb.addImage({base64:b64,extension:ext});
-            // Row index (1-based header + rn data rows; ExcelJS rows are 1-based)
-            const rowIdx=rn+1; // +1 because header is row 1
-            ws.addImage(imgId,{
-              tl:{col:nCols-1,row:rowIdx-1},  // 0-based
-              ext:{width:Math.round(FOTO_ROW_PT*1.33),height:FOTO_ROW_PT},  // ~4:3 ratio
-              editAs:'oneCell'
-            });
-          }catch(e){console.warn('Photo embed error:',e);}
-        }
+    applyStyles(ws,aoaRows.length,nCols);
+    autoColWidths(ws,aoaRows);
+
+    // Last column = Foto column index
+    const fotoCol=nCols-1;
+    // Set foto column width wider
+    if(ws['!cols']) ws['!cols'][fotoCol]={wch:20};
+
+    // Embed images
+    if(!ws['!images']) ws['!images']=[];
+    for(let i=0;i<dataRows.length;i++){
+      const rec=dataRows[i].rec;
+      if(rec.foto2&&rec.foto2.length>0){
+        try{
+          // Use principal (index 0)
+          const src=rec.foto2[0];
+          const base64=src.includes(',')? src.split(',')[1] : src;
+          const ext=src.startsWith('data:image/png')?'PNG':'JPEG';
+          ws['!images'].push({
+            name:`foto_r${i+1}.jpg`,
+            data:base64,
+            opts:{base64:true},
+            position:{
+              type:'twoCellAnchor',
+              attrs:{editAs:'oneCell'},
+              from:{col:fotoCol,row:i+1,colOff:50000,rowOff:50000},
+              to:{col:fotoCol+1,row:i+2,colOff:0,rowOff:0}
+            }
+          });
+        }catch(e){}
       }
     }
 
-    // Apply computed col widths
-    colWidths.forEach((w,i)=>{
-      if(ws.columns[i]) ws.columns[i].width=w;
-    });
-    ws.columns[nCols-1].width=FOTO_COL_W;
-
-    // ── Autofilter ──
-    ws.autoFilter={from:{row:1,column:1},to:{row:1,column:nCols}};
+    return ws;
   }
-  return wb;
+
+  const wb=XLSX.utils.book_new();
+
+  if(mode==='dg'){
+    const devs=data.filter(r=>r.decision==='Devolución'||!r.decision||r.decision==='');
+    const noDevs=data.filter(r=>r.decision==='No Devolución');
+    XLSX.utils.book_append_sheet(wb,await buildSheet(devs,'Devolución'),'Devolución');
+    XLSX.utils.book_append_sheet(wb,await buildSheet(noDevs,'No Devolución'),'No Devolución');
+  } else {
+    XLSX.utils.book_append_sheet(wb,await buildSheet(data,'Novedades'),'Novedades');
+  }
+
+  XLSX.writeFile(wb,`Deprati_${mode}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.xlsx`,{cellStyles:true});
+  showT('📊 Excel exportado');
 }
 
-async function saveExcelWB(wb,filename){
-  const buf=await wb.xlsx.writeBuffer();
-  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=filename;
-  document.body.appendChild(a);a.click();
-  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+// ─────────────────────────────────────────────
+// EXPORT PDF (con fotos en columna)
+// ─────────────────────────────────────────────
+async function exportPDF(mode){
+  const{jsPDF}=window.jspdf;
+  const data=getExpData(mode);
+  if(!data.length){showT('⚠️ No hay datos');return;}
+  showT('⏳ Generando PDF...');
+  const IH=26;
+  const modeLabels={rt:'Revisión en Tienda',dg:'Devolución General',rs:'Revisión Siguiente Semana',req:'Requerimientos',cons:'Consulta'};
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a3'});
+  const pW=doc.internal.pageSize.getWidth(),pH=doc.internal.pageSize.getHeight();
+  const ML=7,usW=pW-ML-7;
+  // Column widths sum to 406mm (A3 landscape usable width)
+  const cW=[7,20,26,13,20,33,13,20,26,13,20,20,39,26,39,26,45];
+  const cN=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso','EAN/SKU','Cantidad','PVP s/IVA','PVP Total','Motivo','Decisión','Observaciones','Fecha','Fotos'];
+  const HH=7,RH=IH+3;
+
+  function drawPageHeader(doc,y,pageNum,subtitle){
+    doc.setFontSize(13);doc.setTextColor(204,0,0);
+    doc.text('DEPRATI — REGISTRO DE NOVEDADES',ML,y+5);
+    doc.setFontSize(7.5);doc.setTextColor(80);
+    doc.text(`${modeLabels[mode]||mode.toUpperCase()}   |   ${new Date().toLocaleString('es-EC')}   |   Pág. ${pageNum}`,ML,y+11);
+    if(subtitle){doc.setFontSize(7);doc.setTextColor(100,100,100);doc.text(subtitle,pW-ML,y+11,{align:'right'});}
+    doc.setDrawColor(204,0,0);doc.setLineWidth(0.4);
+    doc.line(ML,y+13,pW-ML,y+13);
+    const hy=y+15;
+    let x=ML;
+    doc.setFillColor(204,0,0);doc.setTextColor(255,255,255);doc.setFontSize(5.2);doc.setFont(undefined,'bold');
+    cW.forEach((w,i)=>{
+      doc.rect(x,hy,w,HH,'F');
+      doc.text(cN[i],x+1,hy+4.6,{maxWidth:w-1.5});
+      x+=w;
+    });
+    doc.setFont(undefined,'normal');
+    return hy+HH;
+  }
+
+  function drawSectionBanner(doc,y,text,color){
+    if(y+8>pH-7){doc.addPage();return null;} // señal de que hubo salto
+    doc.setFillColor(...color);
+    doc.rect(ML,y,usW,7,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(7.5);doc.setFont(undefined,'bold');
+    doc.text(text,ML+3,y+5);
+    doc.setFont(undefined,'normal');
+    return y+8;
+  }
+
+  async function drawRows(doc,recs,startY,pageNum,color){
+    let y=startY,rn=0;
+    for(const rec of sortR(recs)){
+      for(const ean of (rec.eans||[{ean:'',cantidad:'',pvp:''}])){
+        rn++;
+        if(y+RH>pH-7){
+          doc.addPage();pageNum++;
+          y=drawPageHeader(doc,3,pageNum);
+        }
+        const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
+        const cells=[String(rn),rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',rec.proveedor||'',rec.ref||'',
+          rec.semIngreso||'',ean.ean||'',String(ean.cantidad||''),fPVP(ean),tot?'$'+tot.toFixed(2):'',
+          (rec.motivo||'').substring(0,28),rec.decision||'',(rec.observaciones||'').substring(0,28),
+          (rec.fecha||'').substring(0,16),''];
+        if(rn%2===0)doc.setFillColor(255,245,245);else doc.setFillColor(255,255,255);
+        doc.setDrawColor(218,218,218);doc.setLineWidth(0.2);doc.rect(ML,y,usW,RH,'FD');
+        doc.setTextColor(40);doc.setFontSize(5.2);doc.setFont(undefined,'normal');
+        let x=ML;cells.forEach((t,i)=>{doc.text(String(t),x+1,y+3.8,{maxWidth:cW[i]-1.4});x+=cW[i];});
+        // Draw all photos side by side in last column
+        if(rec.foto2?.length>0){
+          const fotoX=ML+cW.slice(0,-1).reduce((a,b)=>a+b,0);
+          const fotoColW=cW[cW.length-1];
+          let fx=fotoX+1;
+          for(const fsrc of rec.foto2){
+            try{
+              const j=await toJ(fsrc,1200);
+              if(j){
+                const di=await getDim(j);
+                const iW=Math.min(Math.round((IH-2)*(di.w/di.h)),fotoColW-2);
+                if(fx+iW<=fotoX+fotoColW){
+                  doc.addImage(j,'JPEG',fx,y+1,iW,IH-2);
+                  fx+=iW+1;
+                }
+              }
+            }catch(e){}
+          }
+        }
+        y+=RH;
+      }
+    }
+    return{y,pageNum};
+  }
+
+  let pageNum=1;
+  let y=drawPageHeader(doc,3,pageNum);
+
+  if(mode==='dg'){
+    const devs=data.filter(r=>r.decision==='Devolución'||!r.decision||r.decision==='');
+    const noDevs=data.filter(r=>r.decision==='No Devolución');
+
+    if(devs.length){
+      const ny=drawSectionBanner(doc,y,`📦 DEVOLUCIONES (${devs.length} registros)`,[204,0,0]);
+      if(ny){y=ny;}
+      const res=await drawRows(doc,devs,y,pageNum,[255,245,245]);
+      y=res.y;pageNum=res.pageNum;
+    }
+    if(noDevs.length){
+      y+=4;
+      if(y+8>pH-7){doc.addPage();pageNum++;y=drawPageHeader(doc,3,pageNum);}
+      const ny=drawSectionBanner(doc,y,`✅ NO DEVOLUCIONES (${noDevs.length} registros)`,[21,128,61]);
+      if(ny){y=ny;}
+      await drawRows(doc,noDevs,y,pageNum,[240,255,240]);
+    }
+  } else {
+    let rn=0;
+    for(const rec of sortR(data)){
+      for(const ean of (rec.eans||[{ean:'',cantidad:'',pvp:''}])){
+        rn++;
+        if(y+RH>pH-7){doc.addPage();pageNum++;y=drawPageHeader(doc,3,pageNum);}
+        const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
+        const cells=[String(rn),rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',rec.proveedor||'',rec.ref||'',
+          rec.semIngreso||'',ean.ean||'',String(ean.cantidad||''),fPVP(ean),tot?'$'+tot.toFixed(2):'',
+          (rec.motivo||'').substring(0,28),rec.decision||'',(rec.observaciones||'').substring(0,28),
+          (rec.fecha||'').substring(0,16),''];
+        if(rn%2===0)doc.setFillColor(255,245,245);else doc.setFillColor(255,255,255);
+        doc.setDrawColor(218,218,218);doc.setLineWidth(0.2);doc.rect(ML,y,usW,RH,'FD');
+        doc.setTextColor(40);doc.setFontSize(5.2);doc.setFont(undefined,'normal');
+        let x=ML;cells.forEach((t,i)=>{doc.text(String(t),x+1,y+3.8,{maxWidth:cW[i]-1.4});x+=cW[i];});
+        if(rec.foto2?.length>0){
+          const fX3=ML+cW.slice(0,-1).reduce((a,b)=>a+b,0);
+          let fx3=fX3+1;
+          for(const fsrc of rec.foto2){
+            try{const j=await toJ(fsrc,1200);
+              if(j){const di=await getDim(j);const iW=Math.min(Math.round((IH-2)*(di.w/di.h)),cW[cW.length-1]-2);
+                if(fx3+iW<=fX3+cW[cW.length-1]){doc.addImage(j,'JPEG',fx3,y+1,iW,IH-2);fx3+=iW+1;}}
+            }catch(e){}
+          }
+        }
+        y+=RH;
+      }
+    }
+  }
+  doc.save(`Deprati_${mode}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.pdf`);
+  showT('📄 PDF exportado');
+}
+function toJ(d,maxPx){return new Promise(r=>{const i=new Image();i.onload=()=>{
+  // Keep full resolution up to maxPx on longest side to avoid blurriness
+  const mp=maxPx||1200;
+  const scale=Math.min(1,mp/Math.max(i.width,i.height));
+  const cv=document.createElement('canvas');
+  cv.width=Math.round(i.width*scale);cv.height=Math.round(i.height*scale);
+  cv.getContext('2d').drawImage(i,0,0,cv.width,cv.height);
+  r(cv.toDataURL('image/jpeg',.92));};i.onerror=()=>r(null);i.src=d;});}
+function getDim(d){return new Promise(r=>{const i=new Image();i.onload=()=>r({w:i.width,h:i.height});i.onerror=()=>r({w:1,h:1});i.src=d;});}
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function cOv(id){document.getElementById(id).classList.remove('show');}
+function openLB(src){document.getElementById('lxi').src=src;document.getElementById('lx').classList.add('show');}
+function closeLB(){document.getElementById('lx').classList.remove('show');}
+function showT(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',3400);}
+
+// ─────────────────────────────────────────────
+// BARCODE SCANNER
+// ─────────────────────────────────────────────
+let _scanTab='', _scanStream=null, _scanInterval=null;
+
+function openBarcodeScanner(tab){
+  _scanTab=tab;
+  const overlay=document.getElementById('barcode-overlay');
+  overlay.style.display='flex';
+  const video=document.getElementById('barcode-video');
+  const status=document.getElementById('barcode-status');
+  status.textContent='⏳ Iniciando cámara...';
+
+  navigator.mediaDevices.getUserMedia({
+    video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}
+  }).then(stream=>{
+    _scanStream=stream;
+    video.srcObject=stream;
+    video.play();
+    status.textContent='🔍 Buscando código de barras...';
+
+    // Usar BarcodeDetector si está disponible (Chrome Android)
+    if('BarcodeDetector' in window){
+      const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','code_39','upc_a','upc_e','qr_code']});
+      _scanInterval=setInterval(async()=>{
+        try{
+          const codes=await detector.detect(video);
+          if(codes.length>0){
+            const code=codes[0].rawValue;
+            closeBarcodeScanner();
+            pasteBarcode(tab,code);
+          }
+        }catch(e){}
+      },400);
+    } else {
+      // Fallback: usar canvas + ZXing si está disponible
+      status.textContent='📷 Cámara activa — usa la opción de foto si no detecta automáticamente';
+      // Cargar ZXing dinámicamente
+      if(!window.ZXing){
+        const s=document.createElement('script');
+        s.src='https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.1/umd/index.min.js';
+        s.onload=()=>startZXingScan(tab,video,status);
+        document.head.appendChild(s);
+      } else {
+        startZXingScan(tab,video,status);
+      }
+    }
+  }).catch(err=>{
+    status.textContent='⚠️ No se pudo acceder a la cámara: '+err.message;
+  });
 }
 
+function startZXingScan(tab,video,status){
+  try{
+    const codeReader=new ZXingBrowser.BrowserMultiFormatReader();
+    codeReader.decodeFromVideoElement(video).then(result=>{
+      if(result){closeBarcodeScanner();pasteBarcode(tab,result.getText());}
+    }).catch(()=>{});
+  }catch(e){
+    status.textContent='📷 Cámara activa — si no detecta, toma foto con el botón de arriba';
+  }
+}
 
+function closeBarcodeScanner(){
+  if(_scanStream){_scanStream.getTracks().forEach(t=>t.stop());_scanStream=null;}
+  if(_scanInterval){clearInterval(_scanInterval);_scanInterval=null;}
+  const overlay=document.getElementById('barcode-overlay');
+  if(overlay) overlay.style.display='none';
+}
+
+function pasteBarcode(tab,code){
+  // Pegar en el primer campo EAN vacío
+  const eanInput=document.querySelector('#'+tab+'-el .ei');
+  if(eanInput){
+    eanInput.value=code;
+    eanInput.dispatchEvent(new Event('input'));
+  }
+  showT('✅ Código escaneado: '+code);
+}
+
+// ─────────────────────────────────────────────
+// MOBILE BOTTOM NAV
+// ─────────────────────────────────────────────
+let _mbnSubmenuOpen = false;
+let _mbnActiveSub = 'rt';
+
+function toggleMbnSubmenu(btn){
+  if(_mbnSubmenuOpen){
+    closeMbnSubmenu();
+  } else {
+    openMbnSubmenu();
+  }
+}
+
+function openMbnSubmenu(){
+  _mbnSubmenuOpen = true;
+  document.getElementById('mbn-submenu').classList.add('show');
+  document.getElementById('mbn-overlay').classList.add('show');
+  document.getElementById('mbn-ingr').classList.add('act');
+}
+
+function closeMbnSubmenu(){
+  _mbnSubmenuOpen = false;
+  document.getElementById('mbn-submenu').classList.remove('show');
+  document.getElementById('mbn-overlay').classList.remove('show');
+}
+
+function mbnGoSub(tab, btn){
+  closeMbnSubmenu();
+  _mbnActiveSub = tab;
+
+  // Marca visualmente en el submenu
+  ['rt','dg','rs','req'].forEach(t=>{
+    const b=document.getElementById('msub-'+t);
+    const chk=document.getElementById('msub-chk-'+t);
+    if(b) b.classList.toggle('act', t===tab);
+    if(chk) chk.style.display = t===tab ? 'inline' : 'none';
+  });
+
+  // Activa sección Ingresar en nav principal
+  const mainBtn=document.querySelector('.mn button:first-child');
+  if(mainBtn){
+    document.querySelectorAll('.mn button').forEach(b=>b.classList.remove('act'));
+    mainBtn.classList.add('act');
+    document.getElementById('mp-ingr').style.display='block';
+    document.getElementById('mp-cons').style.display='none';
+    document.getElementById('sn').style.display='none';
+  }
+
+  // Activa la subpestaña
+  switchSub(tab, null);
+
+  // Mantiene "Ingresar" activo en bottom nav
+  document.getElementById('mbn-ingr').classList.add('act');
+  document.getElementById('mbn-cons').classList.remove('act');
+}
+
+function mbnCons(btn){
+  closeMbnSubmenu();
+  document.querySelectorAll('.mobile-bottom-nav button').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+  const mainBtn=document.querySelector('.mn button:last-child');
+  if(mainBtn) switchMain('cons', mainBtn);
+}
+
+// ─────────────────────────────────────────────
+// PWA — SERVICE WORKER
+// ─────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/sw.js')
+      .then(()=>console.log('✅ SW registrado'))
+      .catch(e=>console.log('SW error:',e));
+  });
+}
+
+// Prompt de instalación PWA
+let _deferredPrompt=null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  _deferredPrompt=e;
+  // Mostrar banner de instalación
+  showInstallBanner();
+});
+function showInstallBanner(){
+  if(document.getElementById('install-banner')) return;
+  const banner=document.createElement('div');
+  banner.id='install-banner';
+  banner.style.cssText='position:fixed;bottom:70px;left:12px;right:12px;background:#cc0000;color:#fff;border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;z-index:500;box-shadow:0 4px 20px rgba(0,0,0,.25);font-family:Nunito,sans-serif;font-size:.85rem;font-weight:700;';
+  banner.innerHTML=`<span>📲 Instalar app Deprati</span><div style="display:flex;gap:8px;"><button onclick="installPWA()" style="background:#fff;color:#cc0000;border:none;border-radius:7px;padding:6px 14px;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif;">Instalar</button><button onclick="this.closest('#install-banner').remove()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;">✕</button></div>`;
+  document.body.appendChild(banner);
+}
+function installPWA(){
+  if(_deferredPrompt){
+    _deferredPrompt.prompt();
+    _deferredPrompt.userChoice.then(()=>{_deferredPrompt=null;document.getElementById('install-banner')?.remove();});
+  }
+}
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('install-banner')?.remove();
+  showT('✅ App instalada correctamente');
+});
+const FB_CFG={databaseURL:"https://deprati-novedades-default-rtdb.firebaseio.com/"};
+firebase.initializeApp(FB_CFG);
+const db=firebase.database();
+const REF_R=db.ref('records');
+const REF_WK=db.ref('weeks');
+const REF_PV=db.ref('proveedores');
+const REF_CS=db.ref('custom_stores');
+
+function fbSetStatus(state,msg,last){
+  const dot=document.getElementById('fb-dot'),st=document.getElementById('fb-status'),la=document.getElementById('fb-last');
+  if(dot)dot.className='fb-dot '+state;if(st)st.textContent=msg;if(last&&la)la.textContent='🕐 '+last;
+}
+function toFbObj(arr){const o={};arr.forEach(r=>{if(r&&r.id)o[r.id]=r;});return o;}
+
+function loadStorage(){
+  fbSetStatus('wait','⏳ Cargando...');
+  try{CUSTOM_STORES=JSON.parse(localStorage.getItem('dcs')||'[]');}catch(e){CUSTOM_STORES=[];}
+  CUSTOM_STORES.forEach(s=>{if(!STORES.includes(s))STORES.push(s);});
+  renderCustomStoresList();
+  REF_R.once('value').then(snap=>{
+    const val=snap.val();
+    if(val){R.rt=val.rt?Object.values(val.rt):[];R.dg=val.dg?Object.values(val.dg):[];R.rs=val.rs?Object.values(val.rs):[];R.req=val.req?Object.values(val.req):[];}
+    else{R={rt:[],dg:[],rs:[],req:[]};}
+    renderRT();renderDG();renderRS();renderREQ();updateBell();
+    fbSetStatus('ok','✅ Conectado',new Date().toLocaleString('es-EC'));
+  }).catch(()=>{
+    try{R=JSON.parse(localStorage.getItem('dr')||'{"rt":[],"dg":[],"rs":[],"req":[]}');}catch(e){R={rt:[],dg:[],rs:[],req:[]};}
+    renderRT();renderDG();renderRS();renderREQ();updateBell();
+    fbSetStatus('err','⚠️ Sin conexión — datos locales','');
+  });
+  REF_WK.once('value').then(snap=>{const val=snap.val();WK=val?Object.values(val):[];}).catch(()=>{try{WK=JSON.parse(localStorage.getItem('dw')||'[]');}catch(e){WK=[];}});
+  REF_PV.once('value').then(snap=>{const val=snap.val();PV=val||{};const pc=Object.keys(PV).length;if(pc){const el=document.getElementById('pst');if(el)el.textContent='✅ '+pc+' proveedores';}}).catch(()=>{try{PV=JSON.parse(localStorage.getItem('dp')||'{}');}catch(e){PV={};}});
+}
+function sR(){
+  const now=new Date().toLocaleString('es-EC');
+  REF_R.set({rt:toFbObj(R.rt),dg:toFbObj(R.dg),rs:toFbObj(R.rs),req:toFbObj(R.req)})
+    .then(()=>{fbSetStatus('ok','✅ Guardado',now);try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}})
+    .catch(()=>{fbSetStatus('err','⚠️ Error al guardar','');try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}});
+}
+function sW(){REF_WK.set(toFbObj(WK)).catch(()=>{try{localStorage.setItem('dw',JSON.stringify(WK));}catch(e){}});}
+function fbSync(){
+  fbSetStatus('wait','⏳ Sincronizando...');
+  REF_R.once('value').then(snap=>{
+    const val=snap.val();
+    if(val){R.rt=val.rt?Object.values(val.rt):[];R.dg=val.dg?Object.values(val.dg):[];R.rs=val.rs?Object.values(val.rs):[];R.req=val.req?Object.values(val.req):[];}
+    renderRT();renderDG();renderRS();renderREQ();updateBell();
+    fbSetStatus('ok','✅ Sincronizado',new Date().toLocaleString('es-EC'));showT('🔄 Datos actualizados');
+  }).catch(()=>{fbSetStatus('err','⚠️ Sin conexión','');showT('⚠️ No se pudo conectar');});
+  REF_WK.once('value').then(snap=>{const val=snap.val();WK=val?Object.values(val):[];});
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+loadStorage();
+buildForm('rt');buildForm('dg');buildForm('rs');buildForm('req');
+// En móvil, RT visible por defecto
+if(window.innerWidth<=768){
+  switchSub('rt', null);
+  document.getElementById('mbn-ingr')?.classList.add('act');
+}
+// Load OCR
+(()=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js';document.head.appendChild(s);})();
+</script>
+</body>
+</html>
