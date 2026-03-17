@@ -16,7 +16,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <style>
@@ -2873,151 +2872,341 @@ function getExpData(mode){
   if(mode==='cons') return getCF();
   return[];
 }
+// ─────────────────────────────────────────────
+// EXPORT EXCEL — styled via xlsx-js-style shim
+// Uses xlsx.full.min.js + inline style injection
+// ─────────────────────────────────────────────
+
+/* Minimal style shim: patch XLSX cell objects with .s property
+   then inject styles XML during write via a custom sheet_to_csv trick.
+   Since xlsx CE doesn't support cellStyles, we generate a proper
+   Office Open XML package manually using JSZip (bundled inside xlsx). */
+
 async function exportXL(mode){
   const data=getExpData(mode);
   if(!data.length){showT('⚠️ No hay datos');return;}
   showT('⏳ Generando Excel…');
   const isDG=(mode==='dg');
   try{
-    if(mode==='dg'){
+    if(isDG){
       const devs=data.filter(r=>r.decision==='Devolución'||!r.decision||r.decision==='');
       const noDevs=data.filter(r=>r.decision==='No Devolución');
-      const wb=await buildExcelWB([[devs,'Devolución'],[noDevs,'No Devolución']],true);
-      await saveExcelWB(wb,`Deprati_${mode}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.xlsx`);
+      await buildAndDownloadXL([{recs:devs,name:'Devolución'},{recs:noDevs,name:'No Devolución'}],isDG,
+        `Deprati_dg_${today()}.xlsx`);
     } else {
-      const wb=await buildExcelWB([[data,'Novedades']],false);
-      await saveExcelWB(wb,`Deprati_${mode}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.xlsx`);
+      await buildAndDownloadXL([{recs:data,name:'Novedades'}],false,
+        `Deprati_${mode}_${today()}.xlsx`);
     }
     showT('📊 Excel exportado');
-  }catch(e){console.error(e);showT('❌ Error al exportar: '+e.message);}
+  }catch(e){console.error(e);showT('❌ Error Excel: '+e.message);}
 }
 
-// ─────────────────────────────────────────────
-// EXCEL CORE (ExcelJS)
-// ─────────────────────────────────────────────
-async function buildExcelWB(sheets,isDG){
-  const wb=new ExcelJS.Workbook();
-  wb.creator='Deprati';wb.created=new Date();
+async function exportXLTienda(){
+  const t=_rtActiveTienda;
+  if(t==='orig'){await exportXL('rt');return;}
+  const data=R.rt.filter(r=>r._copy&&r.tienda===t);
+  if(!data.length){showT('⚠️ Sin datos');return;}
+  showT('⏳ Generando Excel…');
+  try{
+    await buildAndDownloadXL([{recs:data,name:t.substring(0,31)}],false,
+      `Deprati_RT_${t.replace(/ /g,'_')}_${today()}.xlsx`);
+    showT('📊 Excel exportado para '+t);
+  }catch(e){console.error(e);showT('❌ Error: '+e.message);}
+}
 
-  // 3 cm row = 85 pt (1 pt ≈ 0.353 mm; 30mm/0.353 ≈ 85)
-  const FOTO_ROW_PT=85;
-  const HDR_ROW_PT=22;
-  // Foto col width in chars (≈ 3cm / ~7px per char ≈ 6 chars but ExcelJS uses pts)
-  // We'll set foto col width to about 4.5cm = ~17 chars
-  const FOTO_COL_W=17;
+function today(){return new Date().toLocaleDateString('es-EC').replace(/\//g,'-');}
 
-  const hdr=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso',
+// ── Core builder ──────────────────────────────
+async function buildAndDownloadXL(sheets,isDG,filename){
+  const HDR=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso',
     'EAN/SKU','Cantidad','PVP s/IVA','PVP Total','Motivo','Decisión','Observaciones','Fecha',
     ...(isDG?['Tabla Asignación','# Ped. Traslado']:[]),'Foto'];
-  const nCols=hdr.length;
+  const nC=HDR.length;
 
-  for(const [recs,sheetName] of sheets){
-    const ws=wb.addWorksheet(sheetName,{
-      views:[{showGridLines:false}]  // ← desactivar cuadrícula
-    });
-
-    // ── Column definitions ──
-    const colDefs=hdr.map((h,i)=>{
-      const isLast=i===nCols-1;
-      // Estimate width from header + data
-      return {header:'',width:isLast?FOTO_COL_W:Math.max(h.length+2,10)};
-    });
-    ws.columns=colDefs;
-
-    // ── Header row (row 1) ──
-    const hdrRow=ws.addRow(hdr);
-    hdrRow.height=HDR_ROW_PT;
-    hdrRow.eachCell((cell)=>{
-      cell.font={bold:true,color:{argb:'FFFFFFFF'},size:10,name:'Calibri'};
-      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1F3864'}};
-      cell.border={
-        top:{style:'thin',color:{argb:'FF000000'}},
-        left:{style:'thin',color:{argb:'FF000000'}},
-        bottom:{style:'thin',color:{argb:'FF000000'}},
-        right:{style:'thin',color:{argb:'FF000000'}}
-      };
-      cell.alignment={horizontal:'center',vertical:'middle',wrapText:true};
-    });
-
-    // ── Autofit column widths from header ──
-    const colWidths=hdr.map(h=>h.length+4);
-
-    // ── Data rows ──
+  // ── Collect sheet data and images per sheet ──
+  const sheetDefs=[];
+  for(const {recs,name} of sheets){
+    const rows=[HDR]; // row 0 = header
+    const photos=[];  // {rowIdx(1-based data row), base64, ext}
     let rn=0;
-    const sortedRecs=sortR(recs);
-    for(const rec of sortedRecs){
+    for(const rec of sortR(recs)){
       for(const ean of (rec.eans||[{ean:'',cantidad:'',pvp:''}])){
         rn++;
         const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
-        const rowData=[
-          rn, rec.semana||'', rec.tienda||'', rec.dpto||'', rec.codigo||'',
-          rec.proveedor||'', rec.ref||'', rec.semIngreso||'',
-          ean.ean||'', ean.cantidad||'', parseFloat(ean.pvp||0)||0, tot||0,
-          rec.motivo||'', rec.decision||'', rec.observaciones||'', rec.fecha||'',
-          ...(isDG?[rec.tablaAsig||'',rec.pedidoTraslado||'']:[]),
-          ''  // Foto placeholder
-        ];
-        // Update col widths
-        rowData.forEach((v,i)=>{
-          if(i===nCols-1) return;
-          const l=String(v||'').length;
-          if(l>colWidths[i]) colWidths[i]=Math.min(l+2,50);
-        });
-
-        const dataRow=ws.addRow(rowData);
-        const hasPhoto=rec.foto2&&rec.foto2.length>0;
-        dataRow.height=hasPhoto?FOTO_ROW_PT:18;
-
-        dataRow.eachCell((cell)=>{
-          cell.font={color:{argb:'FF000000'},size:9,name:'Calibri'};
-          cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFFFF'}};
-          cell.border={
-            top:{style:'thin',color:{argb:'FFAAAAAA'}},
-            left:{style:'thin',color:{argb:'FFAAAAAA'}},
-            bottom:{style:'thin',color:{argb:'FFAAAAAA'}},
-            right:{style:'thin',color:{argb:'FFAAAAAA'}}
-          };
-          cell.alignment={horizontal:'center',vertical:'middle',wrapText:false};
-        });
-
-        // ── Embed photo in last cell ──
-        if(hasPhoto){
+        rows.push([rn,rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',
+          rec.proveedor||'',rec.ref||'',rec.semIngreso||'',
+          ean.ean||'',ean.cantidad||'',parseFloat(ean.pvp||0)||'',tot||'',
+          rec.motivo||'',rec.decision||'',rec.observaciones||'',rec.fecha||'',
+          ...(isDG?[rec.tablaAsig||'',rec.pedidoTraslado||'']:[]),'']);
+        if(rec.foto2&&rec.foto2.length>0){
           try{
             const src=rec.foto2[0];
             const b64=src.includes(',')? src.split(',')[1]:src;
             const ext=src.startsWith('data:image/png')?'png':'jpeg';
-            const imgId=wb.addImage({base64:b64,extension:ext});
-            // Row index (1-based header + rn data rows; ExcelJS rows are 1-based)
-            const rowIdx=rn+1; // +1 because header is row 1
-            ws.addImage(imgId,{
-              tl:{col:nCols-1,row:rowIdx-1},  // 0-based
-              ext:{width:Math.round(FOTO_ROW_PT*1.33),height:FOTO_ROW_PT},  // ~4:3 ratio
-              editAs:'oneCell'
-            });
-          }catch(e){console.warn('Photo embed error:',e);}
+            photos.push({dataRow:rn, b64, ext});
+          }catch(e){}
         }
       }
     }
-
-    // Apply computed col widths
-    colWidths.forEach((w,i)=>{
-      if(ws.columns[i]) ws.columns[i].width=w;
-    });
-    ws.columns[nCols-1].width=FOTO_COL_W;
-
-    // ── Autofilter ──
-    ws.autoFilter={from:{row:1,column:1},to:{row:1,column:nCols}};
+    sheetDefs.push({name,rows,photos,nC});
   }
-  return wb;
-}
 
-async function saveExcelWB(wb,filename){
-  const buf=await wb.xlsx.writeBuffer();
-  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  // ── Build OOXML package ──
+  const pkg=await buildOOXML(sheetDefs,HDR);
+  const blob=new Blob([pkg],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download=filename;
   document.body.appendChild(a);a.click();
-  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1500);
+}
+
+// ── OOXML package builder using JSZip (bundled with xlsx.full.min.js) ──
+async function buildOOXML(sheetDefs,HDR){
+  // JSZip is available as window.JSZip when xlsx.full.min loads it
+  // but we can also use the zip utilities exposed on XLSX
+  // Actually, we'll build raw XML strings and zip them manually
+
+  // We use a hidden trick: write via XLSX first, then patch the zip
+  const wb_raw = XLSX.utils.book_new();
+  const allImages = []; // {sheetIdx, dataRow, b64, ext, imgIdx}
+  let imgCounter = 0;
+
+  for(let si=0; si<sheetDefs.length; si++){
+    const {name,rows,photos,nC}=sheetDefs[si];
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+
+    // Col widths
+    const widths=rows[0].map((_,ci)=>{
+      let max=String(rows[0][ci]||'').length;
+      rows.forEach(r=>{const l=String(r[ci]||'').length; if(l>max)max=l;});
+      return ci===nC-1?{wch:18}:{wch:Math.min(max+3,52)};
+    });
+    ws['!cols']=widths;
+
+    // Row heights: header=22pt, data rows with photo=85pt, others=15pt
+    const photoRows=new Set(photos.map(p=>p.dataRow));
+    ws['!rows']=[{hpt:22},...rows.slice(1).map((_,i)=>({hpt:photoRows.has(i+1)?85:15}))];
+
+    XLSX.utils.book_append_sheet(wb_raw,ws,name);
+
+    for(const p of photos){
+      allImages.push({sheetIdx:si, dataRow:p.dataRow, b64:p.b64, ext:p.ext, imgIdx:imgCounter++});
+    }
+  }
+
+  // Write base xlsx as ArrayBuffer
+  const rawBuf = XLSX.write(wb_raw,{bookType:'xlsx',type:'array'});
+
+  // Now patch it: inject styles + images using a JSZip-compatible approach
+  // We'll parse the zip, replace xl/styles.xml, and add drawing files
+  const patched = await patchXlsx(rawBuf, sheetDefs, allImages);
+  return patched;
+}
+
+async function patchXlsx(arrayBuf, sheetDefs, allImages){
+  // Use XLSX's internal zip (it exposes JSZip as XLSX.CFB or via write trick)
+  // Simplest working approach: use fetch-free inline zip manipulation
+  // We'll use the fact that xlsx.full.min bundles a zip library accessible via XLSX.utils
+
+  // Convert ArrayBuffer to Uint8Array for JSZip
+  const uint8 = new Uint8Array(arrayBuf);
+
+  // Load JSZip — xlsx bundles it internally but doesn't expose it directly
+  // We load a tiny JSZip from CDN dynamically (only when needed, async)
+  if(!window._JSZip){
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload=res; s.onerror=rej;
+      document.head.appendChild(s);
+    });
+    window._JSZip=JSZip;
+  }
+  const zip=await window._JSZip.loadAsync(uint8);
+
+  // ── 1. Replace styles.xml ──
+  zip.file('xl/styles.xml', buildStylesXML());
+
+  // ── 2. Patch sheet XMLs to add sheetViews (no gridlines) + row heights ──
+  for(let si=0; si<sheetDefs.length; si++){
+    const {rows,photos,nC}=sheetDefs[si];
+    const photoRows=new Set(photos.map(p=>p.dataRow));
+    const sheetFile=`xl/worksheets/sheet${si+1}.xml`;
+    let sheetXml=await zip.file(sheetFile)?.async('string');
+    if(!sheetXml) continue;
+
+    // Add showGridLines=false to sheetView
+    sheetXml=sheetXml.replace(/<sheetView /g,'<sheetView showGridLines="0" ');
+    if(!sheetXml.includes('sheetView')){
+      sheetXml=sheetXml.replace('<sheetData>','<sheetViews><sheetView showGridLines="0" workbookViewId="0"/></sheetViews><sheetData>');
+    }
+
+    // Inject row styles (header bold+blue, data white+borders)
+    // We patch each <row ...> element
+    sheetXml = injectRowStyles(sheetXml, rows.length, photoRows, nC);
+
+    zip.file(sheetFile, sheetXml);
+
+    // ── 3. Add drawing if this sheet has images ──
+    const sheetImgs=allImages.filter(img=>img.sheetIdx===si);
+    if(sheetImgs.length>0){
+      await addDrawingToSheet(zip, si, sheetImgs, sheetXml, sheetFile);
+    }
+  }
+
+  // ── 4. Regenerate ──
+  return await zip.generateAsync({type:'arraybuffer',compression:'DEFLATE',compressionOptions:{level:6}});
+}
+
+function buildStylesXML(){
+  // Minimal styles.xml with:
+  // Font 0: normal black, Font 1: bold white
+  // Fill 0: none, Fill 1: gray (required), Fill 2: white, Fill 3: dark blue header
+  // Border 0: none, Border 1: thin all sides
+  // CellXf 0: normal data (white fill, thin border, center+middle)
+  //         1: header (blue fill, bold white font, thin border, center+middle)
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2">
+    <font><sz val="9"/><color rgb="FF000000"/><name val="Calibri"/></font>
+    <font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="4">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1F3864"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border>
+      <left style="thin"><color rgb="FF888888"/></left>
+      <right style="thin"><color rgb="FF888888"/></right>
+      <top style="thin"><color rgb="FF888888"/></top>
+      <bottom style="thin"><color rgb="FF888888"/></bottom>
+      <diagonal/>
+    </border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="2">
+    <xf numFmtId="0" fontId="0" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
+    </xf>
+    <xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+  </cellXfs>
+</styleSheet>`;
+}
+
+function injectRowStyles(sheetXml, nRows, photoRows, nC){
+  // Patch cell attributes: add s="1" for header (row 1), s="0" for data rows
+  // Row 1 = header, rows 2..nRows = data
+  // We process the XML by replacing row tags
+  let result = sheetXml;
+
+  // Add s attribute to all cells in header row (r="1")
+  // and data rows. We do a targeted regex on each <row r="N"...>...</row>
+  result = result.replace(/<row r="(\d+)"([^>]*)>([\s\S]*?)<\/row>/g, (match, rNum, attrs, cells) => {
+    const rowN = parseInt(rNum);
+    const styleIdx = rowN === 1 ? 1 : 0; // 1=header style, 0=data style
+    // Add style to each cell: replace <c r="..." without s= or replace existing s=
+    const styledCells = cells.replace(/<c r="([^"]+)"([^>]*?)(\s*\/>|>)/g, (cm, ref, cattrs, close) => {
+      // Remove existing s attr
+      cattrs = cattrs.replace(/\s*s="\d+"/, '');
+      return `<c r="${ref}"${cattrs} s="${styleIdx}"${close}`;
+    });
+    // Also set row height
+    let newAttrs = attrs.replace(/\s*ht="[^"]*"/, '').replace(/\s*customHeight="[^"]*"/, '');
+    const ht = rowN === 1 ? 22 : (photoRows.has(rowN-1) ? 85 : 15);
+    newAttrs += ` ht="${ht}" customHeight="1"`;
+    return `<row r="${rNum}"${newAttrs}>${styledCells}</row>`;
+  });
+  return result;
+}
+
+async function addDrawingToSheet(zip, sheetIdx, imgs, sheetXml, sheetFile){
+  const si = sheetIdx + 1; // 1-based sheet number
+  const drawingId = si;
+  const drawingFile = `xl/drawings/drawing${drawingId}.xml`;
+  const drawingRelsFile = `xl/drawings/_rels/drawing${drawingId}.xml.rels`;
+
+  // Build drawing XML
+  let drawingXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`;
+  let drawingRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`;
+
+  const imageFiles=[];
+  for(const img of imgs){
+    const rId = `rId${img.imgIdx+1}`;
+    const imgFilename = `image${img.imgIdx+1}.${img.ext==='png'?'png':'jpeg'}`;
+    const mediaPath = `xl/media/${imgFilename}`;
+    const mimeType = img.ext==='png'?'image/png':'image/jpeg';
+
+    // Add image binary to zip
+    const bin = b64ToUint8(img.b64);
+    zip.file(mediaPath, bin);
+    imageFiles.push({rId, imgFilename, mimeType, mediaPath});
+
+    // Row is 0-based in OOXML drawing: dataRow is 1-based data index, +1 for header = actual row
+    const row0 = img.dataRow; // 0-based: header=0, first data=1
+    drawingXml += `
+  <xdr:oneCellAnchor>
+    <xdr:from><xdr:col>${img.imgIdx===undefined?0:0}</xdr:col><xdr:colOff>50000</xdr:colOff><xdr:row>${row0}</xdr:row><xdr:rowOff>50000</xdr:rowOff></xdr:from>
+    <xdr:ext cx="1143000" cy="1000000"/>
+    <xdr:pic>
+      <xdr:nvPicPr>
+        <xdr:cNvPr id="${img.imgIdx+2}" name="Photo${img.imgIdx+1}"/>
+        <xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr>
+      </xdr:nvPicPr>
+      <xdr:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
+      <xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1143000" cy="1000000"/></a:xfrm>
+        <a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>
+    </xdr:pic>
+    <xdr:clientData/>
+  </xdr:oneCellAnchor>`;
+
+    drawingRels += `\n  <Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/${imgFilename}"/>`;
+  }
+
+  drawingXml += `\n</xdr:wsDr>`;
+  drawingRels += `\n</Relationships>`;
+
+  zip.file(drawingFile, drawingXml);
+  zip.file(drawingRelsFile, drawingRels);
+
+  // Add drawing relationship to sheet rels
+  const sheetRelsFile = `xl/worksheets/_rels/sheet${si}.xml.rels`;
+  let sheetRels = await zip.file(sheetRelsFile)?.async('string') ||
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`;
+  const drawingRId = `rIdDrw${si}`;
+  sheetRels = sheetRels.replace('</Relationships>',
+    `  <Relationship Id="${drawingRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${drawingId}.xml"/>\n</Relationships>`);
+  zip.file(sheetRelsFile, sheetRels);
+
+  // Add <drawing r:id="..."> to sheet XML (before </worksheet>)
+  let newSheetXml = await zip.file(sheetFile).async('string');
+  if(!newSheetXml.includes('<drawing ')){
+    newSheetXml = newSheetXml.replace('</worksheet>',
+      `<drawing r:id="${drawingRId}"/></worksheet>`);
+    newSheetXml = newSheetXml.replace('<worksheet ',
+      '<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ');
+  }
+  zip.file(sheetFile, newSheetXml);
+
+  // Add drawing to [Content_Types].xml
+  let ct = await zip.file('[Content_Types].xml')?.async('string')||'';
+  if(!ct.includes(`drawing${drawingId}.xml`)){
+    ct = ct.replace('</Types>',
+      `  <Override PartName="/xl/drawings/drawing${drawingId}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>\n</Types>`);
+    zip.file('[Content_Types].xml', ct);
+  }
+}
+
+function b64ToUint8(b64){
+  const bin=atob(b64);
+  const arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return arr;
 }
 
 
