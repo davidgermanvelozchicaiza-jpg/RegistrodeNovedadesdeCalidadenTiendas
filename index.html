@@ -1205,6 +1205,7 @@ function buildForm(tab){
         <button class="pbtn" id="${tab}-scan-btn" onclick="openBarcodeScanner('${tab}')" style="background:#0369a1;margin-top:6px;"><span class="ic">📲</span> Escanear Código</button>
         <div class="pp pp-f1" id="${tab}-p1" title="Click para OCR Lens"></div>
         <div id="${tab}-s1" style="font-size:.75rem;color:#888;margin-top:4px;"></div>
+        <button id="${tab}-f1-clear" class="pbtn" onclick="clearF1('${tab}')" style="display:none;margin-top:4px;background:#dc2626;font-size:.75rem;padding:5px 8px;"><span class="ic">🗑️</span> Descartar Foto 1</button>
       </div>
       <div class="pb">
         <label>📸 Foto del Producto / Novedad</label>
@@ -1219,9 +1220,10 @@ function buildForm(tab){
         </div>
         <!-- Tira de previews con ⭐ principal y botones añadir más -->
         <div class="pp" id="${tab}-p2"></div>
-        <div id="${tab}-f2-addbtns" style="display:none;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="pbtn" onclick="document.getElementById('${tab}-f2add').click()" style="flex:1;background:#0369a1;font-size:.78rem;padding:6px 8px;"><span class="ic">➕</span> Añadir desde Galería</button>
+        <div id="${tab}-f2-addbtns" style="display:none;margin-top:6px;gap:6px;flex-wrap:wrap;">
+          <button class="pbtn" onclick="document.getElementById('${tab}-f2add').click()" style="flex:1;background:#0369a1;font-size:.78rem;padding:6px 8px;"><span class="ic">➕</span> Añadir Galería</button>
           <button class="pbtn" onclick="document.getElementById('${tab}-f2add1').click()" style="flex:1;background:#0369a1;font-size:.78rem;padding:6px 8px;"><span class="ic">📷</span> Añadir Foto</button>
+          <button class="pbtn" onclick="discardAllF2('${tab}')" style="flex:1;background:#dc2626;font-size:.78rem;padding:6px 8px;"><span class="ic">🗑️</span> Descartar Todas</button>
         </div>
       </div>
     </div>
@@ -1482,6 +1484,9 @@ function procF1(tab,file,dataUrl,rawData){
   } else {
     status.innerHTML = `📷 Foto cargada · <span style="color:#0369a1;cursor:pointer;" onclick="openOcr('${src}','${tab}')">🔍 Abrir OCR Lens</span>`;
   }
+  // Show discard button
+  const clrBtn=document.getElementById(tab+'-f1-clear');
+  if(clrBtn) clrBtn.style.display='block';
 }
 
 // ─────────────────────────────────────────────
@@ -1656,6 +1661,26 @@ function setF2Principal(idx,tab){
   showT('⭐ Foto principal actualizada');
 }
 
+
+function clearF1(tab){
+  // Clear foto 1 preview, status, and stored crop
+  const prev=document.getElementById(tab+'-p1');
+  const status=document.getElementById(tab+'-s1');
+  const inp=document.getElementById(tab+'-f1');
+  if(prev) prev.style.backgroundImage='';
+  if(status) status.innerHTML='';
+  if(inp) inp.value='';
+  CS[1]={file:null,tab:null};
+  const clrBtn=document.getElementById(tab+'-f1-clear');
+  if(clrBtn) clrBtn.style.display='none';
+  showT('🗑️ Foto 1 descartada');
+}
+
+function discardAllF2(tab){
+  f2u=[];
+  renderF2Preview(tab);
+  showT('🗑️ Todas las fotos descartadas');
+}
 function delF2(idx,tab){
   f2u.splice(idx,1);
   renderF2Preview(tab);
@@ -2251,85 +2276,7 @@ function renderRTTienda(tienda, recs){
 }
 
 // Export Excel solo para la tienda activa
-async function exportXLTienda(){
-  const t = _rtActiveTienda;
-  if(t==='orig'){ await exportXL('rt'); return; }
-  const data = R.rt.filter(r => r._copy && r.tienda === t);
-  if(!data.length){ showT('⚠️ Sin datos para exportar'); return; }
-  // Delegates to exportXL infrastructure via a fake mode
-  await _exportXLRaw(data,'Tienda_'+t,false,`Deprati_RT_${t.replace(/ /g,'_')}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.xlsx`);
-  showT('📊 Excel exportado para '+t);
-}
 
-// Shared low-level Excel builder (used by exportXLTienda)
-async function _exportXLRaw(data,sheetName,isDG,filename){
-  const hdr=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso',
-    'EAN/SKU','Cantidad','PVP s/IVA','PVP Total','Motivo','Decisión','Observaciones','Fecha','Foto'];
-  const HDR_FILL={patternType:'solid',fgColor:{rgb:'1F3864'}};
-  const HDR_FONT={bold:true,color:{rgb:'FFFFFF'},sz:10};
-  const HDR_ALIGN={horizontal:'center',vertical:'center',wrapText:true};
-  const BORDER={top:{style:'thin',color:{rgb:'AAAAAA'}},bottom:{style:'thin',color:{rgb:'AAAAAA'}},
-    left:{style:'thin',color:{rgb:'AAAAAA'}},right:{style:'thin',color:{rgb:'AAAAAA'}}};
-  const DAT_FONT={color:{rgb:'000000'},sz:9};
-  const DAT_FILL={patternType:'solid',fgColor:{rgb:'FFFFFF'}};
-
-  const dataRows=[]; let rn=0;
-  sortR(data).forEach(rec=>(rec.eans||[{ean:'',cantidad:'',pvp:''}]).forEach(ean=>{
-    rn++;
-    const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
-    dataRows.push({row:[rn,rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',rec.proveedor||'',rec.ref||'',rec.semIngreso||'',
-      ean.ean||'',ean.cantidad||'',parseFloat(ean.pvp||0)||'',tot||'',
-      rec.motivo||'',rec.decision||'',rec.observaciones||'',rec.fecha||'',' '],rec});
-  }));
-
-  const aoaRows=[hdr,...dataRows.map(d=>d.row)];
-  const ws=XLSX.utils.aoa_to_sheet(aoaRows);
-  const nCols=hdr.length;
-
-  // Apply header styles
-  for(let c=0;c<nCols;c++){
-    const addr=XLSX.utils.encode_cell({r:0,c});
-    if(!ws[addr]) ws[addr]={t:'s',v:hdr[c]};
-    ws[addr].s={font:HDR_FONT,fill:HDR_FILL,border:BORDER,alignment:HDR_ALIGN};
-  }
-  // Apply data styles
-  for(let r=1;r<aoaRows.length;r++){
-    for(let c=0;c<nCols;c++){
-      const addr=XLSX.utils.encode_cell({r,c});
-      if(!ws[addr]) ws[addr]={t:'s',v:''};
-      ws[addr].s={font:DAT_FONT,fill:DAT_FILL,border:BORDER,alignment:{vertical:'center'}};
-    }
-  }
-
-  // Autofit columns
-  const widths=Array(nCols).fill(6);
-  aoaRows.forEach(row=>row.forEach((v,i)=>{const l=String(v||'').length;if(l>widths[i])widths[i]=Math.min(l,50);}));
-  ws['!cols']=widths.map((w,i)=>({wch:i===nCols-1?18:w+2}));
-  ws['!rows']=[{hpt:20},...dataRows.map(()=>({hpt:58}))];
-  ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:0,c:nCols-1}})};
-
-  // Embed photos
-  if(!ws['!images']) ws['!images']=[];
-  for(let i=0;i<dataRows.length;i++){
-    const rec=dataRows[i].rec;
-    if(rec.foto2&&rec.foto2.length>0){
-      try{
-        const src=rec.foto2[0];
-        const b64=src.includes(',')? src.split(',')[1]:src;
-        ws['!images'].push({
-          name:'f'+i+'.jpg',data:b64,opts:{base64:true},
-          position:{type:'twoCellAnchor',attrs:{editAs:'oneCell'},
-            from:{col:nCols-1,row:i+1,colOff:20000,rowOff:20000},
-            to:{col:nCols,row:i+2,colOff:0,rowOff:0}}
-        });
-      }catch(e){}
-    }
-  }
-
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,sheetName);
-  XLSX.writeFile(wb,filename,{cellStyles:true});
-}
 
 // Export PDF solo para la tienda activa (copias)
 async function exportPDFTienda(){
@@ -2902,492 +2849,311 @@ function renderConsT(data){
 }
 
 // ─────────────────────────────────────────────
-// EXPORT EXCEL (sin fotos)
+// EXPORT EXCEL  (SheetJS + inline OOXML styles)
 // ─────────────────────────────────────────────
-function getExpData(mode){
-  if(mode==='rt'){return R.rt.filter(r=>r._orig&&!r._copy);}
-  if(mode==='dg'){const f=document.getElementById('dg-ft')?.value||'';return f?R.dg.filter(r=>r.tienda===f):R.dg;}
-  if(mode==='rs') return R.rs;
-  if(mode==='req') return R.req;
-  if(mode==='cons') return getCF();
-  return[];
-}
+
 async function exportXL(mode){
   const data=getExpData(mode);
   if(!data.length){showT('⚠️ No hay datos');return;}
   showT('⏳ Generando Excel…');
+  const isDG=mode==='dg';
+  try{
+    if(isDG){
+      const devs=data.filter(r=>r.decision==='Devolución'||!r.decision||r.decision==='');
+      const noDevs=data.filter(r=>r.decision==='No Devolución');
+      await xlBuild([[devs,'Devolución'],[noDevs,'No Devolución']],isDG,
+        `Deprati_dg_${xlDate()}.xlsx`);
+    }else{
+      await xlBuild([[data,'Novedades']],false,`Deprati_${mode}_${xlDate()}.xlsx`);
+    }
+    showT('📊 Excel exportado');
+  }catch(e){console.error(e);showT('❌ Error Excel: '+e.message);}
+}
 
-  // ── Headers ──
-  const isDG=(mode==='dg');
-  const hdr=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso',
+async function exportXLTienda(){
+  const t=_rtActiveTienda;
+  if(t==='orig'){await exportXL('rt');return;}
+  const data=R.rt.filter(r=>r._copy&&r.tienda===t);
+  if(!data.length){showT('⚠️ Sin datos');return;}
+  showT('⏳ Generando Excel…');
+  try{
+    await xlBuild([[data,t.substring(0,31)]],false,
+      `Deprati_RT_${t.replace(/ /g,'_')}_${xlDate()}.xlsx`);
+    showT('📊 Excel exportado: '+t);
+  }catch(e){console.error(e);showT('❌ Error: '+e.message);}
+}
+
+function xlDate(){return new Date().toLocaleDateString('es-EC').replace(/\//g,'-');}
+
+// ── Core: build multi-sheet workbook and trigger download ──────────────────
+async function xlBuild(sheets,isDG,filename){
+  // Load JSZip lazily (only when exporting, ~100KB)
+  if(!window._JSZip){
+    await new Promise((ok,fail)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload=ok; s.onerror=fail; document.head.appendChild(s);
+    });
+    window._JSZip=JSZip;
+  }
+
+  const HDR=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso',
     'EAN/SKU','Cantidad','PVP s/IVA','PVP Total','Motivo','Decisión','Observaciones','Fecha',
     ...(isDG?['Tabla Asignación','# Ped. Traslado']:[]),'Foto'];
+  const nC=HDR.length;
+  const FOTO_COL=nC-1; // 0-based index of foto column
 
-  // ── Style helpers ──
-  const HDR_FILL={patternType:'solid',fgColor:{rgb:'1F3864'}};
-  const HDR_FONT={bold:true,color:{rgb:'FFFFFF'},sz:10};
-  const HDR_ALIGN={horizontal:'center',vertical:'center',wrapText:true};
-  const HDR_BORDER={top:{style:'thin',color:{rgb:'AAAAAA'}},bottom:{style:'thin',color:{rgb:'AAAAAA'}},
-    left:{style:'thin',color:{rgb:'AAAAAA'}},right:{style:'thin',color:{rgb:'AAAAAA'}}};
-  const DAT_FONT={color:{rgb:'000000'},sz:9};
-  const DAT_FILL={patternType:'solid',fgColor:{rgb:'FFFFFF'}};
-  const DAT_BORDER=HDR_BORDER;
-  const DAT_ALIGN={vertical:'center',wrapText:false};
-
-  function styleCell(ws,addr,font,fill,border,alignment){
-    if(!ws[addr]) ws[addr]={t:'s',v:''};
-    ws[addr].s={font,fill,border,alignment};
-  }
-
-  function applyStyles(ws,nRows,nCols){
-    // Header row (row 1 = index 0)
-    for(let c=0;c<nCols;c++){
-      const addr=XLSX.utils.encode_cell({r:0,c});
-      styleCell(ws,addr,HDR_FONT,HDR_FILL,HDR_BORDER,HDR_ALIGN);
-    }
-    // Data rows
-    for(let r=1;r<nRows;r++){
-      for(let c=0;c<nCols;c++){
-        const addr=XLSX.utils.encode_cell({r,c});
-        styleCell(ws,addr,DAT_FONT,DAT_FILL,DAT_BORDER,DAT_ALIGN);
-      }
-    }
-    // Autofilter on header row
-    ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:0,c:nCols-1}})};
-  }
-
-  function autoColWidths(ws,rows){
-    const nCols=rows[0]?.length||0;
-    const widths=Array(nCols).fill(6);
-    rows.forEach(row=>row.forEach((v,i)=>{
-      const len=String(v||'').length;
-      if(len>widths[i]) widths[i]=Math.min(len,50);
-    }));
-    ws['!cols']=widths.map(w=>({wch:w+2}));
-  }
-
-  // ── Row builder (returns data array, NO header) ──
-  async function buildDataRows(recs){
-    const rows=[];let rn=0;
+  // ── Collect rows + photo info per sheet ──
+  const sheetData=[];
+  for(const [recs,name] of sheets){
+    const rows=[];
+    const photos=[]; // {dataRowIdx 0-based in rows array after header, b64, ext}
+    let rn=0;
     for(const rec of sortR(recs)){
       for(const ean of (rec.eans||[{ean:'',cantidad:'',pvp:''}])){
         rn++;
         const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
-        const row=[rn,rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',rec.proveedor||'',rec.ref||'',rec.semIngreso||'',
+        rows.push([rn,rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',
+          rec.proveedor||'',rec.ref||'',rec.semIngreso||'',
           ean.ean||'',ean.cantidad||'',parseFloat(ean.pvp||0)||'',tot||'',
           rec.motivo||'',rec.decision||'',rec.observaciones||'',rec.fecha||'',
-          ...(isDG?[rec.tablaAsig||'',rec.pedidoTraslado||'']:[]),''];
-        rows.push({row,rec});
+          ...(isDG?[rec.tablaAsig||'',rec.pedidoTraslado||'']:[]),'']);
+        if(rec.foto2?.length>0){
+          try{
+            const src=rec.foto2[0];
+            photos.push({
+              rowIdx:rows.length-1, // 0-based data row
+              b64:src.includes(',')? src.split(',')[1]:src,
+              ext:src.startsWith('data:image/png')?'png':'jpeg'
+            });
+          }catch(_){}
+        }
       }
     }
-    return rows;
+    sheetData.push({name,rows,photos});
   }
 
-  // ── Build worksheet with images ──
-  async function buildSheet(recs,sheetName){
-    const dataRows=await buildDataRows(recs);
-    const aoaRows=[hdr,...dataRows.map(d=>d.row)];
-    const ws=XLSX.utils.aoa_to_sheet(aoaRows);
-    const nCols=hdr.length;
-    const ROW_H=60; // row height in pixels for image rows
-
-    // Set row heights (header=20, data=ROW_H for image)
-    ws['!rows']=[{hpt:20},...dataRows.map(()=>({hpt:ROW_H}))];
-
-    applyStyles(ws,aoaRows.length,nCols);
-    autoColWidths(ws,aoaRows);
-
-    // Last column = Foto column index
-    const fotoCol=nCols-1;
-    // Set foto column width wider
-    if(ws['!cols']) ws['!cols'][fotoCol]={wch:20};
-
-    // Embed images
-    if(!ws['!images']) ws['!images']=[];
-    for(let i=0;i<dataRows.length;i++){
-      const rec=dataRows[i].rec;
-      if(rec.foto2&&rec.foto2.length>0){
-        try{
-          // Use principal (index 0)
-          const src=rec.foto2[0];
-          const base64=src.includes(',')? src.split(',')[1] : src;
-          const ext=src.startsWith('data:image/png')?'PNG':'JPEG';
-          ws['!images'].push({
-            name:`foto_r${i+1}.jpg`,
-            data:base64,
-            opts:{base64:true},
-            position:{
-              type:'twoCellAnchor',
-              attrs:{editAs:'oneCell'},
-              from:{col:fotoCol,row:i+1,colOff:50000,rowOff:50000},
-              to:{col:fotoCol+1,row:i+2,colOff:0,rowOff:0}
-            }
-          });
-        }catch(e){}
-      }
-    }
-
-    return ws;
-  }
-
+  // ── Build base xlsx with SheetJS ──
   const wb=XLSX.utils.book_new();
-
-  if(mode==='dg'){
-    const devs=data.filter(r=>r.decision==='Devolución'||!r.decision||r.decision==='');
-    const noDevs=data.filter(r=>r.decision==='No Devolución');
-    XLSX.utils.book_append_sheet(wb,await buildSheet(devs,'Devolución'),'Devolución');
-    XLSX.utils.book_append_sheet(wb,await buildSheet(noDevs,'No Devolución'),'No Devolución');
-  } else {
-    XLSX.utils.book_append_sheet(wb,await buildSheet(data,'Novedades'),'Novedades');
-  }
-
-  XLSX.writeFile(wb,`Deprati_${mode}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.xlsx`,{cellStyles:true});
-  showT('📊 Excel exportado');
-}
-
-// ─────────────────────────────────────────────
-// EXPORT PDF (con fotos en columna)
-// ─────────────────────────────────────────────
-async function exportPDF(mode){
-  const{jsPDF}=window.jspdf;
-  const data=getExpData(mode);
-  if(!data.length){showT('⚠️ No hay datos');return;}
-  showT('⏳ Generando PDF...');
-  const IH=26;
-  const modeLabels={rt:'Revisión en Tienda',dg:'Devolución General',rs:'Revisión Siguiente Semana',req:'Requerimientos',cons:'Consulta'};
-  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a3'});
-  const pW=doc.internal.pageSize.getWidth(),pH=doc.internal.pageSize.getHeight();
-  const ML=7,usW=pW-ML-7;
-  // Column widths sum to 406mm (A3 landscape usable width)
-  const cW=[7,20,26,13,20,33,13,20,26,13,20,20,39,26,39,26,45];
-  const cN=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso','EAN/SKU','Cantidad','PVP s/IVA','PVP Total','Motivo','Decisión','Observaciones','Fecha','Fotos'];
-  const HH=7,RH=IH+3;
-
-  function drawPageHeader(doc,y,pageNum,subtitle){
-    doc.setFontSize(13);doc.setTextColor(204,0,0);
-    doc.text('DEPRATI — REGISTRO DE NOVEDADES',ML,y+5);
-    doc.setFontSize(7.5);doc.setTextColor(80);
-    doc.text(`${modeLabels[mode]||mode.toUpperCase()}   |   ${new Date().toLocaleString('es-EC')}   |   Pág. ${pageNum}`,ML,y+11);
-    if(subtitle){doc.setFontSize(7);doc.setTextColor(100,100,100);doc.text(subtitle,pW-ML,y+11,{align:'right'});}
-    doc.setDrawColor(204,0,0);doc.setLineWidth(0.4);
-    doc.line(ML,y+13,pW-ML,y+13);
-    const hy=y+15;
-    let x=ML;
-    doc.setFillColor(204,0,0);doc.setTextColor(255,255,255);doc.setFontSize(5.2);doc.setFont(undefined,'bold');
-    cW.forEach((w,i)=>{
-      doc.rect(x,hy,w,HH,'F');
-      doc.text(cN[i],x+1,hy+4.6,{maxWidth:w-1.5});
-      x+=w;
+  for(const {name,rows} of sheetData){
+    const ws=XLSX.utils.aoa_to_sheet([HDR,...rows]);
+    // col widths
+    const cw=HDR.map((h,ci)=>{
+      let w=h.length+2;
+      rows.forEach(r=>{const l=String(r[ci]??'').length; if(l+2>w)w=Math.min(l+2,52);});
+      return {wch: ci===FOTO_COL?18:w};
     });
-    doc.setFont(undefined,'normal');
-    return hy+HH;
+    ws['!cols']=cw;
+    // row heights: header=22, foto rows=85pt (≈3cm), rest=15
+    const photoSet=new Set(sheetData.find(s=>s.name===name)?.photos.map(p=>p.rowIdx));
+    ws['!rows']=[{hpt:22},...rows.map((_,i)=>({hpt:photoSet.has(i)?85:15}))];
+    ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:0,c:nC-1}})};
+    XLSX.utils.book_append_sheet(wb,ws,name);
   }
 
-  function drawSectionBanner(doc,y,text,color){
-    if(y+8>pH-7){doc.addPage();return null;} // señal de que hubo salto
-    doc.setFillColor(...color);
-    doc.rect(ML,y,usW,7,'F');
-    doc.setTextColor(255,255,255);doc.setFontSize(7.5);doc.setFont(undefined,'bold');
-    doc.text(text,ML+3,y+5);
-    doc.setFont(undefined,'normal');
-    return y+8;
-  }
+  // Write to ArrayBuffer
+  const raw=new Uint8Array(XLSX.write(wb,{bookType:'xlsx',type:'array'}));
 
-  async function drawRows(doc,recs,startY,pageNum,color){
-    let y=startY,rn=0;
-    for(const rec of sortR(recs)){
-      for(const ean of (rec.eans||[{ean:'',cantidad:'',pvp:''}])){
-        rn++;
-        if(y+RH>pH-7){
-          doc.addPage();pageNum++;
-          y=drawPageHeader(doc,3,pageNum);
-        }
-        const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
-        const cells=[String(rn),rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',rec.proveedor||'',rec.ref||'',
-          rec.semIngreso||'',ean.ean||'',String(ean.cantidad||''),fPVP(ean),tot?'$'+tot.toFixed(2):'',
-          (rec.motivo||'').substring(0,28),rec.decision||'',(rec.observaciones||'').substring(0,28),
-          (rec.fecha||'').substring(0,16),''];
-        if(rn%2===0)doc.setFillColor(255,245,245);else doc.setFillColor(255,255,255);
-        doc.setDrawColor(218,218,218);doc.setLineWidth(0.2);doc.rect(ML,y,usW,RH,'FD');
-        doc.setTextColor(40);doc.setFontSize(5.2);doc.setFont(undefined,'normal');
-        let x=ML;cells.forEach((t,i)=>{doc.text(String(t),x+1,y+3.8,{maxWidth:cW[i]-1.4});x+=cW[i];});
-        // Draw all photos side by side in last column
-        if(rec.foto2?.length>0){
-          const fotoX=ML+cW.slice(0,-1).reduce((a,b)=>a+b,0);
-          const fotoColW=cW[cW.length-1];
-          let fx=fotoX+1;
-          for(const fsrc of rec.foto2){
-            try{
-              const j=await toJ(fsrc,1200);
-              if(j){
-                const di=await getDim(j);
-                const iW=Math.min(Math.round((IH-2)*(di.w/di.h)),fotoColW-2);
-                if(fx+iW<=fotoX+fotoColW){
-                  doc.addImage(j,'JPEG',fx,y+1,iW,IH-2);
-                  fx+=iW+1;
-                }
-              }
-            }catch(e){}
-          }
-        }
-        y+=RH;
-      }
-    }
-    return{y,pageNum};
-  }
+  // ── Patch xlsx ZIP: inject styles + drawings ──
+  const zip=await window._JSZip.loadAsync(raw);
 
-  let pageNum=1;
-  let y=drawPageHeader(doc,3,pageNum);
+  // 1. Replace styles.xml
+  zip.file('xl/styles.xml', xlStylesXML());
 
-  if(mode==='dg'){
-    const devs=data.filter(r=>r.decision==='Devolución'||!r.decision||r.decision==='');
-    const noDevs=data.filter(r=>r.decision==='No Devolución');
+  // 2. Per-sheet: patch sheetViews + cell styles + add images
+  for(let si=0;si<sheetData.length;si++){
+    const {rows,photos}=sheetData[si];
+    const photoRows=new Set(photos.map(p=>p.rowIdx));
+    const fname=`xl/worksheets/sheet${si+1}.xml`;
+    let sx=await zip.file(fname)?.async('string');
+    if(!sx) continue;
 
-    if(devs.length){
-      const ny=drawSectionBanner(doc,y,`📦 DEVOLUCIONES (${devs.length} registros)`,[204,0,0]);
-      if(ny){y=ny;}
-      const res=await drawRows(doc,devs,y,pageNum,[255,245,245]);
-      y=res.y;pageNum=res.pageNum;
-    }
-    if(noDevs.length){
-      y+=4;
-      if(y+8>pH-7){doc.addPage();pageNum++;y=drawPageHeader(doc,3,pageNum);}
-      const ny=drawSectionBanner(doc,y,`✅ NO DEVOLUCIONES (${noDevs.length} registros)`,[21,128,61]);
-      if(ny){y=ny;}
-      await drawRows(doc,noDevs,y,pageNum,[240,255,240]);
-    }
-  } else {
-    let rn=0;
-    for(const rec of sortR(data)){
-      for(const ean of (rec.eans||[{ean:'',cantidad:'',pvp:''}])){
-        rn++;
-        if(y+RH>pH-7){doc.addPage();pageNum++;y=drawPageHeader(doc,3,pageNum);}
-        const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
-        const cells=[String(rn),rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',rec.proveedor||'',rec.ref||'',
-          rec.semIngreso||'',ean.ean||'',String(ean.cantidad||''),fPVP(ean),tot?'$'+tot.toFixed(2):'',
-          (rec.motivo||'').substring(0,28),rec.decision||'',(rec.observaciones||'').substring(0,28),
-          (rec.fecha||'').substring(0,16),''];
-        if(rn%2===0)doc.setFillColor(255,245,245);else doc.setFillColor(255,255,255);
-        doc.setDrawColor(218,218,218);doc.setLineWidth(0.2);doc.rect(ML,y,usW,RH,'FD');
-        doc.setTextColor(40);doc.setFontSize(5.2);doc.setFont(undefined,'normal');
-        let x=ML;cells.forEach((t,i)=>{doc.text(String(t),x+1,y+3.8,{maxWidth:cW[i]-1.4});x+=cW[i];});
-        if(rec.foto2?.length>0){
-          const fX3=ML+cW.slice(0,-1).reduce((a,b)=>a+b,0);
-          let fx3=fX3+1;
-          for(const fsrc of rec.foto2){
-            try{const j=await toJ(fsrc,1200);
-              if(j){const di=await getDim(j);const iW=Math.min(Math.round((IH-2)*(di.w/di.h)),cW[cW.length-1]-2);
-                if(fx3+iW<=fX3+cW[cW.length-1]){doc.addImage(j,'JPEG',fx3,y+1,iW,IH-2);fx3+=iW+1;}}
-            }catch(e){}
-          }
-        }
-        y+=RH;
-      }
-    }
-  }
-  doc.save(`Deprati_${mode}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.pdf`);
-  showT('📄 PDF exportado');
-}
-function toJ(d,maxPx){return new Promise(r=>{const i=new Image();i.onload=()=>{
-  // Keep full resolution up to maxPx on longest side to avoid blurriness
-  const mp=maxPx||1200;
-  const scale=Math.min(1,mp/Math.max(i.width,i.height));
-  const cv=document.createElement('canvas');
-  cv.width=Math.round(i.width*scale);cv.height=Math.round(i.height*scale);
-  cv.getContext('2d').drawImage(i,0,0,cv.width,cv.height);
-  r(cv.toDataURL('image/jpeg',.92));};i.onerror=()=>r(null);i.src=d;});}
-function getDim(d){return new Promise(r=>{const i=new Image();i.onload=()=>r({w:i.width,h:i.height});i.onerror=()=>r({w:1,h:1});i.src=d;});}
-
-// ─────────────────────────────────────────────
-// UTILS
-// ─────────────────────────────────────────────
-function cOv(id){document.getElementById(id).classList.remove('show');}
-function openLB(src){document.getElementById('lxi').src=src;document.getElementById('lx').classList.add('show');}
-function closeLB(){document.getElementById('lx').classList.remove('show');}
-function showT(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',3400);}
-
-// ─────────────────────────────────────────────
-// BARCODE SCANNER
-// ─────────────────────────────────────────────
-let _scanTab='', _scanStream=null, _scanInterval=null;
-
-function openBarcodeScanner(tab){
-  _scanTab=tab;
-  const overlay=document.getElementById('barcode-overlay');
-  overlay.style.display='flex';
-  const video=document.getElementById('barcode-video');
-  const status=document.getElementById('barcode-status');
-  status.textContent='⏳ Iniciando cámara...';
-
-  navigator.mediaDevices.getUserMedia({
-    video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}
-  }).then(stream=>{
-    _scanStream=stream;
-    video.srcObject=stream;
-    video.play();
-    status.textContent='🔍 Buscando código de barras...';
-
-    // Usar BarcodeDetector si está disponible (Chrome Android)
-    if('BarcodeDetector' in window){
-      const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','code_39','upc_a','upc_e','qr_code']});
-      _scanInterval=setInterval(async()=>{
-        try{
-          const codes=await detector.detect(video);
-          if(codes.length>0){
-            const code=codes[0].rawValue;
-            closeBarcodeScanner();
-            pasteBarcode(tab,code);
-          }
-        }catch(e){}
-      },400);
+    // a) Disable gridlines
+    if(sx.includes('<sheetView ')){
+      sx=sx.replace(/<sheetView /g,'<sheetView showGridLines="0" ');
     } else {
-      // Fallback: usar canvas + ZXing si está disponible
-      status.textContent='📷 Cámara activa — usa la opción de foto si no detecta automáticamente';
-      // Cargar ZXing dinámicamente
-      if(!window.ZXing){
-        const s=document.createElement('script');
-        s.src='https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.1/umd/index.min.js';
-        s.onload=()=>startZXingScan(tab,video,status);
-        document.head.appendChild(s);
-      } else {
-        startZXingScan(tab,video,status);
-      }
+      sx=sx.replace('<sheetData>',
+        '<sheetViews><sheetView showGridLines="0" workbookViewId="0"/></sheetViews><sheetData>');
     }
-  }).catch(err=>{
-    status.textContent='⚠️ No se pudo acceder a la cámara: '+err.message;
+
+    // b) Apply cell styles via regex on each <row r="N">
+    sx=sx.replace(/<row r="(\d+)"([^>]*)>([\s\S]*?)<\/row>/g,(m,rn,attrs,cells)=>{
+      const rowN=parseInt(rn);
+      const si2=rowN===1?1:0; // 1=header style, 0=data style
+      const styledCells=cells.replace(/<c r="([^"]+)"([^\/> ]*)((?:\s[^>]*)?)(\/?>)/g,
+        (cm,ref,pre,rest,close)=>{
+          const noS=pre.replace(/\s*s="\d+"/,'')+rest.replace(/\s*s="\d+"/,'');
+          return `<c r="${ref}"${noS} s="${si2}"${close}`;
+        });
+      const ht=rowN===1?22:(photoRows.has(rowN-2)?85:15); // rowN-2: row1=header,row2=data[0]
+      const newAttrs=attrs.replace(/\s*ht="[^"]*"/,'').replace(/\s*customHeight="[^"]*"/,'')
+        +` ht="${ht}" customHeight="1"`;
+      return `<row r="${rn}"${newAttrs}>${styledCells}</row>`;
+    });
+
+    zip.file(fname,sx);
+
+    // c) Add drawings for photos
+    if(photos.length>0){
+      await xlAddDrawings(zip,si+1,photos,FOTO_COL,fname);
+    }
+  }
+
+  const buf=await zip.generateAsync({type:'arraybuffer',compression:'DEFLATE',compressionOptions:{level:5}});
+  xlDownload(buf,filename);
+}
+
+function xlStylesXML(){
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2">
+    <font><sz val="9"/><color rgb="FF000000"/><name val="Calibri"/></font>
+    <font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="4">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1F3864"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border>
+      <left style="thin"><color rgb="FF888888"/></left>
+      <right style="thin"><color rgb="FF888888"/></right>
+      <top style="thin"><color rgb="FF888888"/></top>
+      <bottom style="thin"><color rgb="FF888888"/></bottom>
+      <diagonal/>
+    </border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="2">
+    <xf numFmtId="0" fontId="0" fillId="2" borderId="1" xfId="0"
+        applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
+    </xf>
+    <xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0"
+        applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+  </cellXfs>
+</styleSheet>`;
+}
+
+async function xlAddDrawings(zip,sheetNum,photos,fotoCol,sheetFile){
+  const mediaEntries=[]; // {rId, filename, b64, ext}
+  let drawXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
+  xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`;
+  let drawRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`;
+
+  photos.forEach((p,i)=>{
+    const rId=`rId${i+1}`;
+    const imgName=`img_s${sheetNum}_${i+1}.${p.ext==='png'?'png':'jpeg'}`;
+    const mime=p.ext==='png'?'image/png':'image/jpeg';
+    // dataRow in sheet (0-based): +1 for header row
+    const excelRow=p.rowIdx+1; // 0-based xlsx row (header=0, first data=1)
+    // Image size: 3cm tall ≈ 1080000 EMU, width proportional (assume 4:3)
+    const cy=1080000, cx=1440000;
+
+    drawXml+=`
+  <xdr:oneCellAnchor>
+    <xdr:from>
+      <xdr:col>${fotoCol}</xdr:col><xdr:colOff>45720</xdr:colOff>
+      <xdr:row>${excelRow}</xdr:row><xdr:rowOff>45720</xdr:rowOff>
+    </xdr:from>
+    <xdr:ext cx="${cx}" cy="${cy}"/>
+    <xdr:pic>
+      <xdr:nvPicPr>
+        <xdr:cNvPr id="${100+i}" name="Img${sheetNum}_${i+1}"/>
+        <xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr>
+      </xdr:nvPicPr>
+      <xdr:blipFill>
+        <a:blip r:embed="${rId}"/>
+        <a:stretch><a:fillRect/></a:stretch>
+      </xdr:blipFill>
+      <xdr:spPr>
+        <a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>
+        <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+      </xdr:spPr>
+    </xdr:pic>
+    <xdr:clientData/>
+  </xdr:oneCellAnchor>`;
+
+    drawRels+=`\n  <Relationship Id="${rId}"
+    Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+    Target="../media/${imgName}"/>`;
+
+    mediaEntries.push({rId,imgName,b64:p.b64,ext:p.ext});
   });
-}
 
-function startZXingScan(tab,video,status){
-  try{
-    const codeReader=new ZXingBrowser.BrowserMultiFormatReader();
-    codeReader.decodeFromVideoElement(video).then(result=>{
-      if(result){closeBarcodeScanner();pasteBarcode(tab,result.getText());}
-    }).catch(()=>{});
-  }catch(e){
-    status.textContent='📷 Cámara activa — si no detecta, toma foto con el botón de arriba';
-  }
-}
+  drawXml+=`\n</xdr:wsDr>`;
+  drawRels+=`\n</Relationships>`;
 
-function closeBarcodeScanner(){
-  if(_scanStream){_scanStream.getTracks().forEach(t=>t.stop());_scanStream=null;}
-  if(_scanInterval){clearInterval(_scanInterval);_scanInterval=null;}
-  const overlay=document.getElementById('barcode-overlay');
-  if(overlay) overlay.style.display='none';
-}
-
-function pasteBarcode(tab,code){
-  // Pegar en el primer campo EAN vacío
-  const eanInput=document.querySelector('#'+tab+'-el .ei');
-  if(eanInput){
-    eanInput.value=code;
-    eanInput.dispatchEvent(new Event('input'));
-  }
-  showT('✅ Código escaneado: '+code);
-}
-
-// ─────────────────────────────────────────────
-// MOBILE BOTTOM NAV
-// ─────────────────────────────────────────────
-let _mbnSubmenuOpen = false;
-let _mbnActiveSub = 'rt';
-
-function toggleMbnSubmenu(btn){
-  if(_mbnSubmenuOpen){
-    closeMbnSubmenu();
-  } else {
-    openMbnSubmenu();
-  }
-}
-
-function openMbnSubmenu(){
-  _mbnSubmenuOpen = true;
-  document.getElementById('mbn-submenu').classList.add('show');
-  document.getElementById('mbn-overlay').classList.add('show');
-  document.getElementById('mbn-ingr').classList.add('act');
-}
-
-function closeMbnSubmenu(){
-  _mbnSubmenuOpen = false;
-  document.getElementById('mbn-submenu').classList.remove('show');
-  document.getElementById('mbn-overlay').classList.remove('show');
-}
-
-function mbnGoSub(tab, btn){
-  closeMbnSubmenu();
-  _mbnActiveSub = tab;
-
-  // Marca visualmente en el submenu
-  ['rt','dg','rs','req'].forEach(t=>{
-    const b=document.getElementById('msub-'+t);
-    const chk=document.getElementById('msub-chk-'+t);
-    if(b) b.classList.toggle('act', t===tab);
-    if(chk) chk.style.display = t===tab ? 'inline' : 'none';
+  // Write media files
+  mediaEntries.forEach(m=>{
+    const bin=xlB64toU8(m.b64);
+    zip.file(`xl/media/${m.imgName}`,bin);
   });
 
-  // Activa sección Ingresar en nav principal
-  const mainBtn=document.querySelector('.mn button:first-child');
-  if(mainBtn){
-    document.querySelectorAll('.mn button').forEach(b=>b.classList.remove('act'));
-    mainBtn.classList.add('act');
-    document.getElementById('mp-ingr').style.display='block';
-    document.getElementById('mp-cons').style.display='none';
-    document.getElementById('sn').style.display='none';
+  // Write drawing files
+  const drawFile=`xl/drawings/drawing${sheetNum}.xml`;
+  const drawRelsFile=`xl/drawings/_rels/drawing${sheetNum}.xml.rels`;
+  zip.file(drawFile,drawXml);
+  zip.file(drawRelsFile,drawRels);
+
+  // Add drawing rel to sheet rels
+  const sheetRelsFile=`xl/worksheets/_rels/sheet${sheetNum}.xml.rels`;
+  const existingRels=await zip.file(sheetRelsFile)?.async('string')||
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`;
+  const newRels=existingRels.replace('</Relationships>',
+    `  <Relationship Id="rIdDrw1"
+    Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing"
+    Target="../drawings/drawing${sheetNum}.xml"/>\n</Relationships>`);
+  zip.file(sheetRelsFile,newRels);
+
+  // Add <drawing> tag to sheet XML
+  let sx=await zip.file(sheetFile).async('string');
+  if(!sx.includes('<drawing ')){
+    // Ensure r: namespace is declared
+    if(!sx.includes('xmlns:r=')){
+      sx=sx.replace('<worksheet ',
+        '<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ');
+    }
+    sx=sx.replace('</worksheet>',`<drawing r:id="rIdDrw1"/></worksheet>`);
+    zip.file(sheetFile,sx);
   }
 
-  // Activa la subpestaña
-  switchSub(tab, null);
-
-  // Mantiene "Ingresar" activo en bottom nav
-  document.getElementById('mbn-ingr').classList.add('act');
-  document.getElementById('mbn-cons').classList.remove('act');
+  // Register drawing in [Content_Types].xml
+  let ct=await zip.file('[Content_Types].xml')?.async('string')||'';
+  if(!ct.includes(`drawing${sheetNum}.xml`)){
+    ct=ct.replace('</Types>',
+      `  <Override PartName="/xl/drawings/drawing${sheetNum}.xml"\n    ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>\n</Types>`);
+    zip.file('[Content_Types].xml',ct);
+  }
 }
 
-function mbnCons(btn){
-  closeMbnSubmenu();
-  document.querySelectorAll('.mobile-bottom-nav button').forEach(b=>b.classList.remove('act'));
-  btn.classList.add('act');
-  const mainBtn=document.querySelector('.mn button:last-child');
-  if(mainBtn) switchMain('cons', mainBtn);
+function xlB64toU8(b64){
+  const s=atob(b64),a=new Uint8Array(s.length);
+  for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);
+  return a;
+}
+
+function xlDownload(buf,name){
+  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1500);
 }
 
 // ─────────────────────────────────────────────
-// PWA — SERVICE WORKER
+// FIREBASE
 // ─────────────────────────────────────────────
-if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('/sw.js')
-      .then(()=>console.log('✅ SW registrado'))
-      .catch(e=>console.log('SW error:',e));
-  });
-}
-
-// Prompt de instalación PWA
-let _deferredPrompt=null;
-window.addEventListener('beforeinstallprompt', e=>{
-  e.preventDefault();
-  _deferredPrompt=e;
-  // Mostrar banner de instalación
-  showInstallBanner();
-});
-function showInstallBanner(){
-  if(document.getElementById('install-banner')) return;
-  const banner=document.createElement('div');
-  banner.id='install-banner';
-  banner.style.cssText='position:fixed;bottom:70px;left:12px;right:12px;background:#cc0000;color:#fff;border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;z-index:500;box-shadow:0 4px 20px rgba(0,0,0,.25);font-family:Nunito,sans-serif;font-size:.85rem;font-weight:700;';
-  banner.innerHTML=`<span>📲 Instalar app Deprati</span><div style="display:flex;gap:8px;"><button onclick="installPWA()" style="background:#fff;color:#cc0000;border:none;border-radius:7px;padding:6px 14px;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif;">Instalar</button><button onclick="this.closest('#install-banner').remove()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;">✕</button></div>`;
-  document.body.appendChild(banner);
-}
-function installPWA(){
-  if(_deferredPrompt){
-    _deferredPrompt.prompt();
-    _deferredPrompt.userChoice.then(()=>{_deferredPrompt=null;document.getElementById('install-banner')?.remove();});
-  }
-}
-window.addEventListener('appinstalled',()=>{
-  document.getElementById('install-banner')?.remove();
-  showT('✅ App instalada correctamente');
-});
 const FB_CFG={databaseURL:"https://deprati-novedades-default-rtdb.firebaseio.com/"};
 firebase.initializeApp(FB_CFG);
 const db=firebase.database();
@@ -3419,7 +3185,11 @@ function loadStorage(){
     fbSetStatus('err','⚠️ Sin conexión — datos locales','');
   });
   REF_WK.once('value').then(snap=>{const val=snap.val();WK=val?Object.values(val):[];}).catch(()=>{try{WK=JSON.parse(localStorage.getItem('dw')||'[]');}catch(e){WK=[];}});
-  REF_PV.once('value').then(snap=>{const val=snap.val();PV=val||{};const pc=Object.keys(PV).length;if(pc){const el=document.getElementById('pst');if(el)el.textContent='✅ '+pc+' proveedores';}}).catch(()=>{try{PV=JSON.parse(localStorage.getItem('dp')||'{}');}catch(e){PV={};}});
+  REF_PV.once('value').then(snap=>{
+    const val=snap.val();PV=val||{};
+    const pc=Object.keys(PV).length;
+    if(pc){const el=document.getElementById('pst');if(el)el.textContent='✅ '+pc+' proveedores';}
+  }).catch(()=>{try{PV=JSON.parse(localStorage.getItem('dp')||'{}');}catch(e){PV={};}});
 }
 function sR(){
   const now=new Date().toLocaleString('es-EC');
@@ -3444,13 +3214,11 @@ function fbSync(){
 // ─────────────────────────────────────────────
 loadStorage();
 buildForm('rt');buildForm('dg');buildForm('rs');buildForm('req');
-// En móvil, RT visible por defecto
-if(window.innerWidth<=768){
-  switchSub('rt', null);
-  document.getElementById('mbn-ingr')?.classList.add('act');
-}
-// Load OCR
+// Load OCR async (no bloquea la carga)
 (()=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js';document.head.appendChild(s);})();
+// Register SW
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
+
 </script>
 </body>
 </html>
