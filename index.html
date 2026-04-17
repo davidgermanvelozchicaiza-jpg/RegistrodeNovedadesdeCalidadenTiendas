@@ -323,8 +323,8 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
   .dg-panel-reg,.dg-panel-prov{padding:10px;}
 
   /* RT STABS */
-  #rt-stab-bar{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;}
-  #rt-stab-bar::-webkit-scrollbar{display:none;}
+  /* rt-copias-wrap: smooth reveal */
+  #rt-copias-wrap{border-top:2px dashed #065f46;padding-top:14px;}
   .rt-stab{flex-shrink:0;font-size:.72rem;padding:6px 10px;}
 
   /* OVERLAYS Y DIALOGS */
@@ -552,7 +552,7 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
 </nav>
 
 <!-- SUB NAV sticky -->
-<div class="sn sticky-nav" id="sn" style="top:93px;">
+<div class="sn sticky-nav" id="sn" style="top:93px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
   <button class="act" onclick="switchSub('rt',this)">🏪 Revisión en Tienda</button>
   <button onclick="switchSub('dg',this)">📦 Devolución General</button>
   <button onclick="switchSub('rs',this)">📅 Revisión Siguiente Semana</button>
@@ -565,29 +565,31 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
   <!-- RT -->
   <div id="sp-rt" style="display:block;padding:20px 26px;max-width:2000px;margin:0 auto;">
     <div class="st">🏪 Revisión en Tienda</div>
-    <div class="lb">
-      <label>📂 Cargar Consolidado de Revisión (JSON / Excel):
-        <input type="file" id="ci" accept=".json,.xlsx,.xls" onchange="loadConsol(this)" style="margin-left:8px;font-size:.77rem;cursor:pointer;">
-      </label>
-      <span id="cst" style="font-size:.78rem;color:#555;"></span>
-    </div>
     <div id="rt-f"></div>
 
-    <!-- Subpestañas dentro de RT: Originales + una por tienda con copias -->
+    <!-- Panel unificado RT: Originales + Copias por Tienda en el mismo panel -->
     <div id="rt-stabs-wrap" style="display:none;margin-top:18px;">
 
-      <!-- Barra de subpestañas de tiendas -->
-      <div id="rt-stab-bar" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:0;background:#fff;border:1.5px solid #e0e0e0;border-bottom:none;border-radius:10px 10px 0 0;padding:8px 10px 0;">
-        <!-- Botones generados por JS -->
-      </div>
+      <!-- Panel único -->
+      <div id="rt-panel-orig" style="border:1.5px solid #e0e0e0;border-radius:10px;padding:14px;background:#fff;">
 
-      <!-- Panel: Originales -->
-      <div id="rt-panel-orig" style="border:1.5px solid #e0e0e0;border-radius:0 0 10px 10px;padding:14px;background:#fff;">
-        <div class="fb" style="margin-bottom:10px;">
+        <!-- ── SECCIÓN REGISTROS ORIGINALES ── -->
+        <div style="font-family:'Playfair Display',serif;font-size:1rem;color:#1e40af;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+          🔵 Registros Originales
+        </div>
+        <div class="fb" style="margin-bottom:10px;flex-wrap:wrap;">
+          <!-- Filtro solo Originales -->
+          <select id="rt-filter-orig" onchange="renderRT()" style="min-width:150px;">
+            <option value="">Todas las tiendas</option>
+            <option>LUQUE</option><option>SUR</option><option>ROTONDA</option><option>QUICENTRO NORTE</option>
+            <option>SAN MARINO</option><option>SAN LUIS</option><option>QUICENTRO SUR</option><option>POLICENTRO</option>
+            <option>PLAZA NAVONA</option><option>SCALA</option><option>CONDADO</option><option>EL RECREO</option><option>MALL DEL PACIFICO</option>
+            <option>PORTAL CARAPUNGO</option><option>MACHALA</option><option>BOMBOLÍ</option><option>INTERNET</option>
+          </select>
           <button class="btn bg sm" onclick="exportXL('rt')"><span class="ic">📊</span> Excel</button>
           <button class="btn bs sm" onclick="exportPDF('rt')"><span class="ic">📄</span> PDF Originales</button>
-          <button class="btn borg sm" onclick="copiarTodas()"><span class="ic">📋</span> Copiar a Todas las Tiendas</button>
           <button class="btn bw sm" onclick="openWkRT('orig')" style="background:#5b21b6;"><span class="ic">📁</span> Guardar en Consultar</button>
+          <button class="btn" onclick="openReplicarTienda()" style="background:#065f46;color:#fff;font-weight:700;" title="Replicar registros a una tienda específica"><span class="ic">🏪</span> Replicar a Tienda Específica</button>
         </div>
         <div class="rw"><table>
           <thead><tr>
@@ -596,24 +598,37 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
             <th>Motivo</th><th>Decisión</th><th>Observaciones</th><th>Foto</th><th>➕EAN</th><th>🗑️</th>
           </tr></thead><tbody id="rt-tb"></tbody>
         </table></div>
-      </div>
 
-      <!-- Panel: por tienda (copias) — generado dinámicamente -->
-      <div id="rt-panel-tienda" style="display:none;border:1.5px solid #e0e0e0;border-radius:0 0 10px 10px;padding:14px;background:#fff;">
-        <div id="rt-tienda-title" style="font-family:'Playfair Display',serif;font-size:1rem;color:#065f46;margin-bottom:10px;display:flex;align-items:center;gap:8px;"></div>
-        <div class="fb" style="margin-bottom:10px;">
-          <button class="btn bg sm" onclick="exportXLTienda()"><span class="ic">📊</span> Excel Tienda</button>
-          <button class="btn bs sm" onclick="exportPDFTienda()"><span class="ic">📄</span> PDF Tienda</button>
-          <button class="btn bw sm" onclick="openWkRT('tienda')" style="background:#5b21b6;"><span class="ic">📁</span> Guardar en Consultar</button>
-          <button class="btn bnw sm" onclick="actualizarTiendaPanel()" style="background:#0369a1;"><span class="ic">🔄</span> Actualizar</button>
+        <!-- ── SECCIÓN COPIAS POR TIENDA (se muestra abajo cuando existan) ── -->
+        <div id="rt-copias-wrap" style="display:none;margin-top:24px;border-top:2px dashed #065f46;padding-top:16px;">
+          <div style="font-family:'Playfair Display',serif;font-size:1rem;color:#065f46;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            🏪 Registros por Tienda
+            <span id="rt-copias-count" style="background:#d1fae5;color:#065f46;border-radius:10px;padding:2px 10px;font-size:.75rem;font-weight:700;"></span>
+          </div>
+          <div class="fb" style="margin-bottom:10px;flex-wrap:wrap;">
+            <!-- Filtro por tienda en copias -->
+            <label style="font-size:.8rem;font-weight:700;color:#065f46;">Filtrar Tienda:</label>
+            <select id="rt-filter-tienda" onchange="renderRTCopias()" style="min-width:160px;">
+              <option value="">Todas las tiendas</option>
+              <option>LUQUE</option><option>SUR</option><option>ROTONDA</option><option>QUICENTRO NORTE</option>
+              <option>SAN MARINO</option><option>SAN LUIS</option><option>QUICENTRO SUR</option><option>POLICENTRO</option>
+              <option>PLAZA NAVONA</option><option>SCALA</option><option>CONDADO</option><option>EL RECREO</option><option>MALL DEL PACIFICO</option>
+              <option>PORTAL CARAPUNGO</option><option>MACHALA</option><option>BOMBOLÍ</option><option>INTERNET</option>
+            </select>
+            <button class="btn bg sm" onclick="exportXLTienda()"><span class="ic">📊</span> Excel Tiendas</button>
+            <button class="btn bs sm" onclick="exportPDFTienda()"><span class="ic">📄</span> PDF Tiendas</button>
+            <button class="btn bw sm" onclick="openWkRT('tienda')" style="background:#5b21b6;"><span class="ic">📁</span> Guardar en Consultar</button>
+            <button class="btn bnw sm" onclick="renderRTCopias();showT('🔄 Actualizado')" style="background:#0369a1;"><span class="ic">🔄</span> Actualizar</button>
+          </div>
+          <div class="rw"><table>
+            <thead><tr>
+              <th>#</th><th>Semana</th><th>Tienda</th><th>DPTO</th><th>Código</th><th>Proveedor</th>
+              <th>REF</th><th>Sem.Ing.</th><th>EAN/SKU</th><th>Cant.</th><th>PVP s/IVA</th><th>PVP Total</th>
+              <th>Motivo</th><th>Decisión</th><th>Observaciones</th><th>Foto</th><th>➕EAN</th><th>🗑️</th><th>📦 Dev.</th>
+            </tr></thead><tbody id="rt-tienda-tb"></tbody>
+          </table></div>
         </div>
-        <div class="rw"><table>
-          <thead><tr>
-            <th>#</th><th>Semana</th><th>Tienda</th><th>DPTO</th><th>Código</th><th>Proveedor</th>
-            <th>REF</th><th>Sem.Ing.</th><th>EAN/SKU</th><th>Cant.</th><th>PVP s/IVA</th><th>PVP Total</th>
-            <th>Motivo</th><th>Decisión</th><th>Observaciones</th><th>Foto</th><th>➕EAN</th><th>🗑️</th><th>📦 Dev.</th>
-          </tr></thead><tbody id="rt-tienda-tb"></tbody>
-        </table></div>
+
       </div>
 
     </div><!-- end rt-stabs-wrap -->
@@ -625,6 +640,12 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
   <!-- DG -->
   <div id="sp-dg" style="display:none;padding:20px 26px;max-width:2000px;margin:0 auto;">
     <div class="st">📦 Devolución General</div>
+
+    <!-- BANNER ESTADO DG -->
+    <div id="dg-status-banner" class="lb" style="background:#e0f2fe;border-color:#7dd3fc;">
+      <span id="dg-status-txt" style="font-size:.82rem;color:#0369a1;font-weight:700;"></span>
+    </div>
+
     <div id="dg-f"></div>
     <div id="dg-ts" style="display:none;">
       <div class="st" style="margin-top:20px;">📊 Devoluciones</div>
@@ -635,23 +656,29 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
       </div>
       <!-- Panel Registros -->
       <div id="dg-panel-reg" style="border:1.5px solid #e0e0e0;border-radius:0 0 10px 10px;padding:14px;background:#fff;">
+        <!-- Indicador de trabajo colaborativo por tienda -->
+        <div id="dg-collab-summary" style="display:none;background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:9px;padding:10px 14px;margin-bottom:12px;font-family:'Nunito',sans-serif;font-size:.78rem;">
+          <div style="font-weight:700;color:#065f46;margin-bottom:6px;">📡 Progreso colaborativo por tienda:</div>
+          <div id="dg-collab-grid" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+        </div>
         <div class="fb">
           <select id="dg-ft" onchange="renderDG()">
             <option value="">Todas las tiendas</option>
             <option>LUQUE</option><option>SUR</option><option>ROTONDA</option><option>QUICENTRO NORTE</option>
             <option>SAN MARINO</option><option>SAN LUIS</option><option>QUICENTRO SUR</option><option>POLICENTRO</option>
-            <option>PLAZA NAVONA</option><option>SCALA</option><option>EL RECREO</option><option>MALL DEL PACIFICO</option>
-            <option>PORTAL</option><option>INTERNET</option><option>MACHALA</option><option>BOMBOLÍ</option>
+            <option>PLAZA NAVONA</option><option>SCALA</option><option>CONDADO</option><option>EL RECREO</option><option>MALL DEL PACIFICO</option>
+            <option>PORTAL CARAPUNGO</option><option>MACHALA</option><option>BOMBOLÍ</option><option>INTERNET</option>
           </select>
           <button class="btn bg sm" onclick="exportXL('dg')"><span class="ic">📊</span> Excel</button>
           <button class="btn bs sm" onclick="exportPDF('dg')"><span class="ic">📄</span> PDF</button>
           <button class="btn bnw sm" onclick="renderDG();showT('🔄 Actualizado')"><span class="ic">🔄</span> Actualizar</button>
+          <button class="btn" onclick="exportReporteFinalDG()" style="background:#7c3aed;color:#fff;padding:9px 15px;font-size:.84rem;font-weight:700;" title="Reporte final consolidado de todas las tiendas"><span class="ic">📋</span> Reporte Final Admin</button>
         </div>
         <div class="rw"><table>
           <thead><tr>
             <th>#</th><th>Semana</th><th>Tienda</th><th>DPTO</th><th>Código</th><th>Proveedor</th>
             <th>REF</th><th>Sem.Ing.</th><th>EAN/SKU</th><th>Cant.</th><th>PVP s/IVA</th><th>PVP Total</th>
-            <th>Motivo</th><th>Decisión</th><th>Observaciones</th><th>Tabla Asig.</th><th># Ped. Traslado</th><th>Foto</th><th>➕EAN</th><th>🗑️</th>
+            <th>Motivo</th><th>Decisión</th><th>Observaciones</th><th>Tabla Asignación</th><th># Ped. Traslado</th><th>Foto</th><th>➕EAN</th><th>🗑️</th>
           </tr></thead><tbody id="dg-tb"></tbody>
         </table></div>
       </div>
@@ -708,6 +735,7 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
     </div>
   </div>
 
+
 </div><!-- end mp-ingr -->
 
 <!-- MAIN: CONSULTAR -->
@@ -736,13 +764,15 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
         <option value="">Todas las tiendas</option>
         <option>LUQUE</option><option>SUR</option><option>ROTONDA</option><option>QUICENTRO NORTE</option>
         <option>SAN MARINO</option><option>SAN LUIS</option><option>QUICENTRO SUR</option><option>POLICENTRO</option>
-        <option>PLAZA NAVONA</option><option>SCALA</option><option>EL RECREO</option><option>MALL DEL PACIFICO</option>
-        <option>PORTAL</option><option>INTERNET</option><option>MACHALA</option><option>BOMBOLÍ</option>
+        <option>PLAZA NAVONA</option><option>SCALA</option><option>CONDADO</option><option>EL RECREO</option><option>MALL DEL PACIFICO</option>
+        <option>PORTAL CARAPUNGO</option><option>MACHALA</option><option>BOMBOLÍ</option><option>INTERNET</option>
       </select>
       <button class="btn bp sm" onclick="filterCons()"><span class="ic">🔍</span> Filtrar</button>
       <button class="btn bg sm" onclick="exportXL('cons')"><span class="ic">📊</span> Excel</button>
       <button class="btn bs sm" onclick="exportPDF('cons')"><span class="ic">📄</span> PDF</button>
       <button class="btn bo sm" onclick="closeCons()"><span class="ic">✕</span> Cerrar</button>
+      <button class="btn" id="cons-edit-btn" onclick="consRequestEdit()" style="background:#f59e0b;color:#fff;font-weight:700;" title="Ingresar clave para editar"><span class="ic">🔑</span> Editar</button>
+      <button class="btn bs sm" id="cons-lock-btn" onclick="consLock()" style="display:none;" title="Bloquear edición"><span class="ic">🔒</span> Bloquear</button>
     </div>
     <div class="fb" style="margin-top:-4px;margin-bottom:8px;" id="cons-edit-btns">
       <button class="btn bs sm" onclick="consSelAll(true)"><span class="ic">☑️</span> Sel. Todo</button>
@@ -754,20 +784,53 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
   </div>
 </div>
 
-
-<!-- PASSWORD MODAL -->
-<div class="ov" id="ov-pwd"><div class="dl" style="max-width:320px;">
-  <h3 id="pwd-title">🔒 Acceso Protegido</h3>
-  <p id="pwd-msg" style="font-size:.85rem;color:#555;margin-bottom:10px;">Ingrese la contraseña para continuar.</p>
-  <input type="password" id="pwd-inp" placeholder="Contraseña" maxlength="20"
-    style="width:100%;padding:10px 12px;border:2px solid var(--gb);border-radius:8px;font-size:1rem;font-family:'Nunito',sans-serif;margin-bottom:4px;"
-    onkeydown="if(event.key==='Enter')confirmPwd()">
-  <div id="pwd-err" style="color:#cc0000;font-size:.78rem;min-height:18px;margin-bottom:6px;"></div>
-  <div class="br">
-    <button class="btn bp" onclick="confirmPwd()"><span class="ic">✅</span> Confirmar</button>
-    <button class="btn bo" onclick="cancelPwd()"><span class="ic">❌</span> Cancelar</button>
+<!-- Modal: confirmar salir de la app (móvil) -->
+<div class="ov" id="ov-salir-app"><div class="dl" style="max-width:340px;text-align:center;">
+  <div style="font-size:2.5rem;margin-bottom:8px;">📱</div>
+  <h3 style="color:#CC0000;margin-bottom:10px;">¿Desea salir de la aplicación?</h3>
+  <p style="font-size:.88rem;color:#555;margin-bottom:18px;">Si sale, los cambios no guardados podrían perderse.</p>
+  <div class="br" style="justify-content:center;gap:12px;">
+    <button class="btn bd" onclick="confirmarSalirApp()" style="min-width:90px;"><span class="ic">✅</span> Sí, salir</button>
+    <button class="btn bo" onclick="cancelarSalirApp()" style="min-width:90px;"><span class="ic">❌</span> No</button>
   </div>
 </div></div>
+
+<!-- Modal: eliminar carpeta en Consultar -->
+<div class="ov" id="ov-cons-del-folder"><div class="dl" style="max-width:380px;">
+  <h3 style="color:#dc2626;">🗑️ Eliminar Carpeta</h3>
+  <p style="font-size:.86rem;color:#555;margin-bottom:6px;">Vas a eliminar permanentemente la carpeta:</p>
+  <p id="cons-del-folder-name" style="font-weight:700;color:#1e293b;font-size:.9rem;margin-bottom:14px;background:#fee2e2;border-radius:7px;padding:7px 12px;"></p>
+  <p style="font-size:.82rem;color:#555;margin-bottom:14px;">Esta acción <strong>no se puede deshacer</strong>. Ingresa la clave para confirmar.</p>
+  <div class="g" style="margin-bottom:12px;">
+    <label style="font-size:.75rem;font-weight:700;color:#92400e;text-transform:uppercase;">Clave</label>
+    <input type="password" id="cons-folder-clave-inp" placeholder="••••"
+      style="border:1.5px solid #fca5a5;border-radius:8px;padding:9px 12px;font-family:'Nunito',sans-serif;font-size:1.1rem;letter-spacing:6px;text-align:center;margin-top:4px;width:100%;"
+      onkeydown="if(event.key==='Enter') consCheckFolderClave()">
+  </div>
+  <div id="cons-folder-clave-err" style="font-size:.78rem;color:#dc2626;margin-bottom:10px;min-height:18px;"></div>
+  <div class="br">
+    <button class="btn bd" onclick="consCheckFolderClave()" style="background:#dc2626;"><span class="ic">🗑️</span> Eliminar</button>
+    <button class="btn bo" onclick="cOv('ov-cons-del-folder');_folderToDelete=null;"><span class="ic">❌</span> Cancelar</button>
+  </div>
+</div></div>
+
+<!-- Modal: clave para editar en Consultar -->
+<div class="ov" id="ov-cons-clave"><div class="dl" style="max-width:360px;">
+  <h3 style="color:#f59e0b;">🔑 Acceso de Edición</h3>
+  <p style="font-size:.86rem;color:#555;margin-bottom:14px;">Ingresa la clave para habilitar la edición y eliminación de registros.</p>
+  <div class="g" style="margin-bottom:16px;">
+    <label style="font-size:.75rem;font-weight:700;color:#92400e;text-transform:uppercase;">Clave</label>
+    <input type="password" id="cons-clave-inp" placeholder="••••"
+      style="border:1.5px solid #fcd34d;border-radius:8px;padding:9px 12px;font-family:'Nunito',sans-serif;font-size:1.1rem;letter-spacing:6px;text-align:center;margin-top:4px;width:100%;"
+      onkeydown="if(event.key==='Enter') consCheckClave()">
+  </div>
+  <div id="cons-clave-err" style="font-size:.78rem;color:#dc2626;margin-bottom:10px;min-height:18px;"></div>
+  <div class="br">
+    <button class="btn" onclick="consCheckClave()" style="background:#f59e0b;color:#fff;font-weight:700;"><span class="ic">🔑</span> Ingresar</button>
+    <button class="btn bo" onclick="cOv('ov-cons-clave');document.getElementById('cons-clave-inp').value='';document.getElementById('cons-clave-err').textContent=''"><span class="ic">❌</span> Cancelar</button>
+  </div>
+</div></div>
+
 <!-- Crop modals -->
 <div class="cv" id="cv1"><div class="cm">
   <h3>✂️ Foto 1 — OCR + Código de Barras</h3>
@@ -799,7 +862,8 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
   </div>
 </div></div>
 <div class="ov" id="ov-nw"><div class="dl">
-  <h3>🆕 Ingresar Nueva Semana</h3><p>Se limpiarán todos los campos y registros actuales. ¿Continuar?</p>
+  <h3>🆕 Ingresar Nueva Semana</h3>
+  <p id="ov-nw-msg">Se limpiarán todos los campos y registros actuales. ¿Continuar?</p>
   <div class="br">
     <button class="btn bnw" onclick="doNueva()"><span class="ic">✅</span> Sí, continuar</button>
     <button class="btn bo" onclick="cOv('ov-nw')"><span class="ic">❌</span> No</button>
@@ -860,19 +924,39 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
 </div>
 
 <!-- BARCODE SCANNER OVERLAY -->
-<div id="barcode-overlay" style="display:none;position:fixed;inset:0;background:#000;z-index:950;flex-direction:column;align-items:center;justify-content:center;">
-  <div style="color:#fff;font-family:'Nunito',sans-serif;font-size:.9rem;font-weight:700;margin-bottom:10px;text-align:center;">
-    📲 Apunta la cámara al código de barras
+<div id="barcode-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:950;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;">
+  <div style="color:#facc15;font-family:'Nunito',sans-serif;font-size:1rem;font-weight:700;text-align:center;">📲 Escáner de Código de Barras</div>
+  <div style="color:#94a3b8;font-family:'Nunito',sans-serif;font-size:.78rem;text-align:center;margin-top:-6px;">Encuadra el código dentro del recuadro amarillo</div>
+  <!-- Visor de cámara con guías de esquinas -->
+  <div style="position:relative;width:min(320px,88vw);height:min(200px,50vw);">
+    <video id="barcode-video" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" playsinline autoplay muted></video>
+    <!-- Línea de escaneo animada -->
+    <div id="scan-line" style="position:absolute;left:6%;width:88%;height:2.5px;background:linear-gradient(90deg,transparent,#facc15,transparent);box-shadow:0 0 8px #facc15;animation:scanMove 1.8s ease-in-out infinite;top:20%;"></div>
+    <!-- Esquinas del marco -->
+    <div style="position:absolute;top:0;left:0;width:22px;height:22px;border-top:3px solid #facc15;border-left:3px solid #facc15;border-radius:3px 0 0 0;"></div>
+    <div style="position:absolute;top:0;right:0;width:22px;height:22px;border-top:3px solid #facc15;border-right:3px solid #facc15;border-radius:0 3px 0 0;"></div>
+    <div style="position:absolute;bottom:0;left:0;width:22px;height:22px;border-bottom:3px solid #facc15;border-left:3px solid #facc15;border-radius:0 0 0 3px;"></div>
+    <div style="position:absolute;bottom:0;right:0;width:22px;height:22px;border-bottom:3px solid #facc15;border-right:3px solid #facc15;border-radius:0 0 3px 0;"></div>
   </div>
-  <div style="position:relative;width:min(340px,90vw);height:min(240px,55vw);border:3px solid #facc15;border-radius:10px;overflow:hidden;">
-    <video id="barcode-video" style="width:100%;height:100%;object-fit:cover;" playsinline autoplay muted></video>
-    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80%;height:2px;background:rgba(250,204,21,.7);box-shadow:0 0 8px #facc15;"></div>
+  <div id="barcode-status" style="color:#94a3b8;font-size:.78rem;min-height:20px;text-align:center;font-family:'Nunito',sans-serif;"></div>
+  <!-- Input manual como fallback -->
+  <div id="barcode-manual-wrap" style="display:none;flex-direction:column;align-items:center;gap:6px;width:min(320px,88vw);">
+    <div style="color:#fff;font-size:.78rem;font-family:'Nunito',sans-serif;">O ingresa el código manualmente:</div>
+    <div style="display:flex;gap:6px;width:100%;">
+      <input id="barcode-manual-inp" type="text" inputmode="numeric" placeholder="Ej: 7750123456789"
+        style="flex:1;border:1.5px solid #facc15;border-radius:7px;padding:7px 10px;font-family:'Nunito',sans-serif;font-size:.9rem;background:#1e1e2e;color:#fff;"
+        onkeydown="if(event.key==='Enter') confirmManualBarcode()">
+      <button onclick="confirmManualBarcode()" style="background:#facc15;color:#000;border:none;border-radius:7px;padding:7px 12px;font-family:'Nunito',sans-serif;font-size:.82rem;font-weight:700;cursor:pointer;">✓</button>
+    </div>
   </div>
-  <div id="barcode-status" style="color:#94a3b8;font-size:.78rem;margin-top:10px;min-height:20px;text-align:center;"></div>
-  <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center;">
-    <button onclick="closeBarcodeScanner()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-family:'Nunito',sans-serif;font-size:.85rem;font-weight:700;cursor:pointer;">✕ Cerrar</button>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+    <button onclick="toggleManualBarcode()" style="background:#374151;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-family:'Nunito',sans-serif;font-size:.82rem;font-weight:700;cursor:pointer;">⌨️ Manual</button>
+    <button onclick="closeBarcodeScanner()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-family:'Nunito',sans-serif;font-size:.82rem;font-weight:700;cursor:pointer;">✕ Cerrar</button>
   </div>
 </div>
+<style>
+@keyframes scanMove{0%{top:10%}50%{top:80%}100%{top:10%}}
+</style>
 
 
 <!-- GALLERY LIGHTBOX -->
@@ -881,6 +965,23 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
   <img id="gal-lb-main" src="" alt="">
   <div id="gal-lb-strip"></div>
 </div>
+<!-- MODAL: Replicar a Tienda Específica -->
+<div class="ov" id="ov-replicar-tienda"><div class="dl" style="max-width:420px;">
+  <h3 style="color:#065f46;">🏪 Replicar a Tienda Específica</h3>
+  <p style="font-size:.85rem;color:#555;margin-bottom:14px;">Selecciona la tienda a la que deseas replicar los registros originales. Los registros replicados aparecerán en <strong>Devolución General</strong> filtrados por esa tienda, sincronizados con todos los dispositivos.</p>
+  <div class="g" style="margin-bottom:16px;">
+    <label style="font-size:.75rem;font-weight:700;color:#065f46;text-transform:uppercase;">Tienda de destino</label>
+    <select id="replicar-tienda-sel" style="border:1.5px solid #6ee7b7;border-radius:8px;padding:8px 12px;font-family:'Nunito',sans-serif;font-size:.92rem;background:#f0fdf4;font-weight:700;margin-top:4px;">
+      <option value="">-- Seleccionar Tienda --</option>
+    </select>
+  </div>
+  <div id="replicar-tienda-info" style="font-size:.78rem;color:#065f46;margin-bottom:12px;min-height:18px;"></div>
+  <div class="br">
+    <button class="btn bg" onclick="doReplicarTienda()" style="background:#065f46;"><span class="ic">🏪</span> Replicar a esta Tienda</button>
+    <button class="btn bo" onclick="cOv('ov-replicar-tienda')"><span class="ic">❌</span> Cancelar</button>
+  </div>
+</div></div>
+
 <div class="lx" id="lx" onclick="closeLB()">
   <span class="lxc">✕</span><img id="lxi" src="" alt="">
 </div>
@@ -891,8 +992,8 @@ tr[style*="background:#f0fdf4"]:hover td{background:#dcfce7!important;}
 // CONSTANTS & STATE
 // ─────────────────────────────────────────────
 let STORES=['LUQUE','SUR','ROTONDA','QUICENTRO NORTE','SAN MARINO','SAN LUIS',
-  'QUICENTRO SUR','POLICENTRO','PLAZA NAVONA','SCALA','EL RECREO','MALL DEL PACIFICO',
-  'PORTAL','INTERNET','MACHALA','BOMBOLÍ'];
+  'QUICENTRO SUR','POLICENTRO','PLAZA NAVONA','SCALA','CONDADO','EL RECREO','MALL DEL PACIFICO',
+  'PORTAL CARAPUNGO','MACHALA','BOMBOLÍ','INTERNET'];
 let CUSTOM_STORES=[];
 
 // DIV 6-7 data — preloaded from Excel, can be overridden
@@ -961,17 +1062,25 @@ function switchMain(p,btn){
   if(p==='cons') renderConsWeeks();
 }
 function switchSub(tab, btn){
-  // Actualiza botones del subnav desktop (si están visibles)
   document.querySelectorAll('.sn button').forEach(b=>b.classList.remove('act'));
   if(btn) btn.classList.add('act');
-  // Muestra/oculta las páginas
+  else {
+    // Si btn es null, marcar el correcto
+    document.querySelectorAll('.sn button').forEach(b=>{
+      if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'"+tab+"'")) b.classList.add('act');
+    });
+  }
   ['rt','dg','rs','req'].forEach(t=>{
     const el=document.getElementById('sp-'+t);
     if(el) el.style.display=tab===t?'block':'none';
   });
-  // Renderiza
   if(tab==='rt') renderRT();
-  else if(tab==='dg') renderDG();
+  else if(tab==='dg'){
+    // El listener en tiempo real de Firebase (loadStorage) ya mantiene R.dg actualizado.
+    updateDGStatusBanner();
+    renderDG();
+    autoFiltrarDGPorTienda();
+  }
   else if(tab==='rs') renderRS();
   else if(tab==='req') renderREQ();
 }
@@ -1072,13 +1181,13 @@ function renderBellList(){
 
 function delNotification(id){
   R.req=R.req.filter(r=>String(r.id)!==String(id));
-  sR();renderREQ();updateBell();renderBellList();
+  sREQ();renderREQ();updateBell();renderBellList();
   showT('🗑️ Notificación eliminada');
 }
 function delAllNotifications(){
   if(!confirm('¿Eliminar todas las notificaciones?')) return;
   R.req=[];
-  sR();renderREQ();updateBell();renderBellList();
+  sREQ();renderREQ();updateBell();renderBellList();
   showT('🗑️ Todas las notificaciones eliminadas');
 }
 
@@ -1165,7 +1274,8 @@ function lookupPv(tab,cod){
 // FORM BUILDER
 // ─────────────────────────────────────────────
 function decOpts(tab){
-  if(tab==='rt'||tab==='rs') return`<option value="Revisar en Tiendas" selected>Revisar en Tiendas</option><option value="Devolución">Devolución</option><option value="No Devolución">No Devolución</option>`;
+  if(tab==='rt') return`<option value="Revisar en Tiendas" selected>Revisar en Tiendas</option><option value="Devolución">Devolución</option><option value="No Devolución">No Devolución</option>`;
+  if(tab==='rs') return`<option value="Pendiente" selected>Pendiente</option><option value="Revisar en Tiendas">Revisar en Tiendas</option><option value="Devolución">Devolución</option><option value="No Devolución">No Devolución</option>`;
   return`<option value="">-- Seleccionar --</option><option value="Devolución">Devolución</option><option value="No Devolución">No Devolución</option>`;
 }
 function wkBtnLabel(tab){
@@ -1176,8 +1286,8 @@ function wkBtnLabel(tab){
   return`Revisión Siguiente Semana (editable)`;
 }
 
-function buildForm(tab){
-  const el=document.getElementById(tab+'-f');
+function buildForm(tab, tiendaFixed, containerEl){
+  const el=containerEl||document.getElementById(tab+'-f');
   if(!el) return;
   const isReq=(tab==='req');
   const SO=getAllStoresOptions();
@@ -1192,7 +1302,12 @@ function buildForm(tab){
     </div>`:''}
     <div class="fg" style="grid-template-columns:240px 240px;">
       <div class="g"><label>1. Semana</label><input type="text" id="${tab}-sem" oninput="updWkBtn('${tab}')"></div>
-      <div class="g"><label>2. Tienda</label><select id="${tab}-tie"><option value="">-- Seleccionar --</option>${SO}</select></div>
+      <div class="g"><label>2. Tienda</label>
+        ${tiendaFixed
+          ? `<input type="text" id="${tab}-tie" value="${tiendaFixed}" readonly style="background:#f0fdf4;color:#065f46;font-weight:700;">`
+          : `<select id="${tab}-tie"><option value="">-- Seleccionar --</option>${SO}</select>`
+        }
+      </div>
     </div>
     <div class="ps">
       <div class="pb">
@@ -1202,10 +1317,9 @@ function buildForm(tab){
           <button class="pbtn" onclick="document.getElementById('${tab}-f1').removeAttribute('capture');document.getElementById('${tab}-f1').click();setTimeout(()=>document.getElementById('${tab}-f1').setAttribute('capture','environment'),500)" style="flex:1;"><span class="ic">🖼️</span> Galería</button>
           <button class="pbtn" onclick="document.getElementById('${tab}-f1').setAttribute('capture','environment');document.getElementById('${tab}-f1').click()" style="flex:1;background:#0e7490;"><span class="ic">📷</span> Tomar Foto</button>
         </div>
-        <button class="pbtn" id="${tab}-scan-btn" onclick="openBarcodeScanner('${tab}')" style="background:#0369a1;margin-top:6px;"><span class="ic">📲</span> Escanear Código</button>
         <div class="pp pp-f1" id="${tab}-p1" title="Click para OCR Lens"></div>
         <div id="${tab}-s1" style="font-size:.75rem;color:#888;margin-top:4px;"></div>
-        <button id="${tab}-f1-clear" class="pbtn" onclick="clearF1('${tab}')" style="display:none;margin-top:4px;background:#dc2626;font-size:.75rem;padding:5px 8px;"><span class="ic">🗑️</span> Descartar Foto 1</button>
+        <button class="pbtn" id="${tab}-f1-discard" onclick="discardFoto1('${tab}')" style="display:none;background:#dc2626;margin-top:4px;font-size:.78rem;padding:5px 10px;"><span class="ic">🗑️</span> Descartar Foto 1</button>
       </div>
       <div class="pb">
         <label>📸 Foto del Producto / Novedad</label>
@@ -1220,10 +1334,10 @@ function buildForm(tab){
         </div>
         <!-- Tira de previews con ⭐ principal y botones añadir más -->
         <div class="pp" id="${tab}-p2"></div>
-        <div id="${tab}-f2-addbtns" style="display:none;margin-top:6px;gap:6px;flex-wrap:wrap;">
-          <button class="pbtn" onclick="document.getElementById('${tab}-f2add').click()" style="flex:1;background:#0369a1;font-size:.78rem;padding:6px 8px;"><span class="ic">➕</span> Añadir Galería</button>
+        <div id="${tab}-f2-addbtns" style="display:none;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="pbtn" onclick="document.getElementById('${tab}-f2add').click()" style="flex:1;background:#0369a1;font-size:.78rem;padding:6px 8px;"><span class="ic">➕</span> Añadir desde Galería</button>
           <button class="pbtn" onclick="document.getElementById('${tab}-f2add1').click()" style="flex:1;background:#0369a1;font-size:.78rem;padding:6px 8px;"><span class="ic">📷</span> Añadir Foto</button>
-          <button class="pbtn" onclick="discardAllF2('${tab}')" style="flex:1;background:#dc2626;font-size:.78rem;padding:6px 8px;"><span class="ic">🗑️</span> Descartar Todas</button>
+          <button class="pbtn" onclick="discardFoto2('${tab}')" style="flex:1;background:#dc2626;font-size:.78rem;padding:6px 8px;"><span class="ic">🗑️</span> Descartar Todas</button>
         </div>
       </div>
     </div>
@@ -1248,8 +1362,17 @@ function buildForm(tab){
       <h4>🏷️ EAN / SKU y Cantidades</h4>
       <div id="${tab}-el">
         <div class="er" data-i="0">
-          <div class="g"><label>11. EAN/SKU</label><input type="text" class="ei"></div>
-          <div class="g"><label>12. Cantidad</label><input type="number" class="ci" min="0" oninput="calcP(this)"></div>
+          <div class="g"><label>11. EAN/SKU</label>
+            <div style="display:flex;gap:5px;align-items:center;">
+              <input type="text" class="ei" style="flex:1;">
+              <button type="button" class="btn" onclick="openBarcodeScanner('${tab}')" style="background:#0369a1;color:#fff;font-weight:700;padding:5px 9px;font-size:.78rem;white-space:nowrap;" title="Escanear código de barras"><span style="font-size:.9rem;">📲</span> Escanear</button>
+            </div>
+          </div>
+          <div class="g"><label>12. Cantidad</label>
+          <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+            <input type="text" inputmode="numeric" class="ci" placeholder="0" oninput="calcP(this)" style="width:70px;">
+            <button type="button" class="btn bs sm" style="font-size:.72rem;padding:4px 7px;white-space:nowrap;" onclick="(()=>{const ci=this.closest('.g').querySelector('.ci');ci.value='Toda la Referencia';calcP(ci);})()" title="Toda la Referencia">📦 Toda Ref.</button>
+          </div></div>
           <div class="g"><label>13. PVP s/IVA</label><input type="number" class="pi" step="0.01" oninput="calcP(this)"></div>
           <div class="g"><label>13b. PVP Total</label><div class="pvpd">$0.00</div></div>
           <div></div>
@@ -1262,9 +1385,12 @@ function buildForm(tab){
       <div class="g fs"><label>16. Decisión de Calidad</label>
         <select id="${tab}-dec" style="border:1.5px solid var(--gb);border-radius:7px;padding:6px 10px;font-family:'Nunito',sans-serif;font-size:.87rem;background:#fcfcfc;">${decOpts(tab)}</select></div>
       <div class="g fs"><label>17. Observaciones</label><textarea id="${tab}-obs"></textarea></div>
+      ${tab==='dg'?`
+      <div class="g fs"><label>18. Tabla de Asignación</label><input type="text" id="${tab}-ta"></div>
+      <div class="g fs"><label>19. # de Pedido de Traslado</label><input type="text" id="${tab}-pt"></div>`:''}
     </div>
     <div class="br">
-      <button class="btn bp" onclick="openSave('${tab}')"><span class="ic">💾</span> Guardar Registro</button>
+      <button class="btn bp" data-tiendafixed="${tiendaFixed||''}" data-tab="${tab}" onclick="var t=this.dataset.tiendafixed;t?saveSTRec(t):openSave(this.dataset.tab)"><span class="ic">💾</span> Guardar Registro</button>
       ${!isReq?`<button class="btn bw" id="${tab}-wkb" onclick="openWk('${tab}')"><span class="ic">📁</span> <span id="${tab}-wkl">${wkBtnLabel(tab)}</span></button>`:''}
       <button class="btn bnw" onclick="openNW('${tab}')"><span class="ic">🆕</span> Ingresar Nueva Semana</button>
       <button class="btn bs" onclick="clearF('${tab}')"><span class="ic">🔄</span> Limpiar</button>
@@ -1344,7 +1470,7 @@ function loadConsol(inp){
         }));
       }
       if(!loaded.length){st.textContent='⚠️ Sin registros';return;}
-      R.rt=[...R.rt,...loaded];sR();renderRT();
+      R.rt=[...R.rt,...loaded];sRT();renderRT();
       st.textContent=`✅ ${loaded.length} registros cargados`;showT(`✅ ${loaded.length} registros cargados`);
     }catch(ex){st.textContent='⚠️ Error';console.error(ex);}
   };
@@ -1364,32 +1490,9 @@ function saveConsol(){
 }
 
 // ─────────────────────────────────────────────
-// COPY TO ALL STORES (RT)
+// COPIAR REGISTRO ORIGINAL A UNA TIENDA ESPECÍFICA
 // ─────────────────────────────────────────────
-function copiarTodas(){
-  const base=R.rt.filter(r=>r._orig&&!r._copy);
-  if(!base.length){showT('⚠️ Sin registros originales');return;}
-  let added=0;
-  STORES.forEach(tienda=>{
-    base.forEach(rec=>{
-      // Siempre copiar a todas las tiendas, incluso si la tienda destino
-      // tiene sus propios registros originales. Solo evitar duplicar
-      // la copia exacta (mismo srcId + misma tienda).
-      if(R.rt.some(x=>x._copy&&x._srcId===rec.id&&x.tienda===tienda)) return;
-      const clone=JSON.parse(JSON.stringify(rec));
-      clone.id=uid();
-      clone.tienda=tienda;
-      clone._copy=true;
-      clone._srcId=rec.id;
-      clone._orig=false;
-      clone.fecha='';
-      R.rt.push(clone);
-      added++;
-    });
-  });
-  sR();renderRT();
-  showT(`✅ ${added} registros copiados a todas las tiendas`);
-}
+
 
 // ─────────────────────────────────────────────
 // CROP
@@ -1462,6 +1565,10 @@ function procF1(tab,file,dataUrl,rawData){
   img.onclick = () => openOcr(src, tab);
   prev.appendChild(img);
 
+  // Mostrar botón de descartar
+  const discardBtn = document.getElementById(tab+'-f1-discard');
+  if(discardBtn) discardBtn.style.display='inline-flex';
+
   // Indicador de procesamiento OCR automático
   status.innerHTML = '⏳ Procesando código de barras...';
 
@@ -1484,9 +1591,6 @@ function procF1(tab,file,dataUrl,rawData){
   } else {
     status.innerHTML = `📷 Foto cargada · <span style="color:#0369a1;cursor:pointer;" onclick="openOcr('${src}','${tab}')">🔍 Abrir OCR Lens</span>`;
   }
-  // Show discard button
-  const clrBtn=document.getElementById(tab+'-f1-clear');
-  if(clrBtn) clrBtn.style.display='block';
 }
 
 // ─────────────────────────────────────────────
@@ -1621,6 +1725,29 @@ function ocrUseEAN(){
   closeOcr();
 }
 
+// DESCARTAR FOTO 1 en formulario
+function discardFoto1(tab){
+  const prev=document.getElementById(tab+'-p1');
+  const status=document.getElementById(tab+'-s1');
+  const inp=document.getElementById(tab+'-f1');
+  const discardBtn=document.getElementById(tab+'-f1-discard');
+  if(prev) prev.innerHTML='';
+  if(status) status.textContent='';
+  if(inp) inp.value='';
+  if(discardBtn) discardBtn.style.display='none';
+  _ocrSrc='';_ocrTab='';
+  showT('🗑️ Foto 1 descartada');
+}
+
+// DESCARTAR TODAS FOTOS 2 en formulario
+function discardFoto2(tab){
+  f2u=[];
+  renderF2Preview(tab);
+  const inp=document.getElementById(tab+'-f2');
+  if(inp) inp.value='';
+  showT('🗑️ Fotos del producto descartadas');
+}
+
 // FOTO 2 — con selector de principal
 function procF2(tab,jd){
   f2u.push(jd);
@@ -1661,26 +1788,6 @@ function setF2Principal(idx,tab){
   showT('⭐ Foto principal actualizada');
 }
 
-
-function clearF1(tab){
-  // Clear foto 1 preview, status, and stored crop
-  const prev=document.getElementById(tab+'-p1');
-  const status=document.getElementById(tab+'-s1');
-  const inp=document.getElementById(tab+'-f1');
-  if(prev) prev.style.backgroundImage='';
-  if(status) status.innerHTML='';
-  if(inp) inp.value='';
-  CS[1]={file:null,tab:null};
-  const clrBtn=document.getElementById(tab+'-f1-clear');
-  if(clrBtn) clrBtn.style.display='none';
-  showT('🗑️ Foto 1 descartada');
-}
-
-function discardAllF2(tab){
-  f2u=[];
-  renderF2Preview(tab);
-  showT('🗑️ Todas las fotos descartadas');
-}
 function delF2(idx,tab){
   f2u.splice(idx,1);
   renderF2Preview(tab);
@@ -1783,7 +1890,7 @@ function addMorePhotos(tab,id,inp){
         rec.foto2.push(jd);
         loaded++;
         if(loaded===files.length){
-          sR();
+          if(tab==='dg') sDG([id]); else saveTab(tab);
           if(tab==='rt')renderRT();else if(tab==='dg')renderDG();else if(tab==='rs')renderRS();else renderREQ();
           showT(`📷 ${files.length} foto(s) agregada(s)`);
         }
@@ -1800,9 +1907,19 @@ function clearFotos(tab,id){
   const rec=R[tab]?.find(r=>String(r.id)===id);
   if(!rec)return;
   rec.foto2=[];
-  sR();
+  if(tab==='dg') sDGDelete(id); // reescribir sin fotos
+  if(tab==='dg') sDG([id]); else saveTab(tab);
   if(tab==='rt')renderRT();else if(tab==='dg')renderDG();else if(tab==='rs')renderRS();else renderREQ();
   showT('🗑️ Fotos eliminadas');
+}
+
+function delRecFoto(tab,id,idx){
+  const rec=R[tab]?.find(r=>String(r.id)===id);
+  if(!rec||!rec.foto2) return;
+  rec.foto2.splice(idx,1);
+  saveTab(tab);
+  if(tab==='rt')renderRT();else if(tab==='dg')renderDG();else if(tab==='rs')renderRS();else renderREQ();
+  showT('🗑️ Foto eliminada');
 }
 
 function setRecPrincipal(tab,id,idx){
@@ -1810,7 +1927,7 @@ function setRecPrincipal(tab,id,idx){
   if(!rec||!rec.foto2)return;
   const img=rec.foto2.splice(idx,1)[0];
   rec.foto2.unshift(img);
-  sR();
+  saveTab(tab);
   if(tab==='rt')renderRT();else if(tab==='dg')renderDG();else if(tab==='rs')renderRS();else renderREQ();
   showT('⭐ Foto principal actualizada');
 }
@@ -1825,7 +1942,11 @@ function addER(tab){
   const row=document.createElement('div');row.className='er';row.setAttribute('data-i',idx);
   row.innerHTML=`
     <div class="g"><label>EAN/SKU ${idx+1}</label><input type="text" class="ei"></div>
-    <div class="g"><label>Cantidad ${idx+1}</label><input type="number" class="ci" min="0" oninput="calcP(this)"></div>
+    <div class="g"><label>Cantidad ${idx+1}</label>
+          <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+            <input type="text" inputmode="numeric" class="ci" placeholder="0" oninput="calcP(this)" style="width:70px;">
+            <button type="button" class="btn bs sm" style="font-size:.72rem;padding:4px 7px;white-space:nowrap;" onclick="(()=>{const ci=this.closest('div').querySelector('.ci');ci.value='Toda la Referencia';calcP(ci);})()" title="Toda la Referencia">📦 Toda Ref.</button>
+          </div></div>
     <div class="g"><label>PVP s/IVA ${idx+1}</label><input type="number" class="pi" step="0.01" value="${fp}" oninput="calcP(this)"></div>
     <div class="g"><label>PVP Total</label><div class="pvpd">$0.00</div></div>
     <div class="g" style="justify-content:flex-end;"><button class="btn bd sm" onclick="this.closest('.er').remove()" style="margin-top:16px"><span class="ic">🗑️</span></button></div>`;
@@ -1879,6 +2000,11 @@ function doSave(){
     _tab:tab,
     _orig:true
   };
+  // DG specific
+  if(tab==='dg'){
+    rec.tablaAsignacion=document.getElementById('dg-ta')?.value?.trim()||'';
+    rec.pedidoTraslado=document.getElementById('dg-pt')?.value?.trim()||'';
+  }
   // REQ specific
   if(tab==='req'){
     rec.reqArea=document.getElementById('req-area')?.value||'';
@@ -1889,45 +2015,85 @@ function doSave(){
     const clone=JSON.parse(JSON.stringify(rec));
     clone.id=uid();clone._tab='dg';clone._srcId=rec.id;clone._fromTab=tab;
     R.dg.push(clone);
-    sR();clearF(tab);
+    saveTab(tab); sDG([clone.id]); clearF(tab);
     if(tab==='rt') renderRT(); else if(tab==='rs') renderRS(); else if(tab==='req'){renderREQ();updateBell();}
     renderDG();
     showT('✅ Guardado + copiado a Devolución General');
   } else {
-    sR();clearF(tab);
+    saveTab(tab); clearF(tab);
     if(tab==='rt') renderRT(); else if(tab==='dg') renderDG(); else if(tab==='rs') renderRS(); else if(tab==='req'){renderREQ();updateBell();}
     showT('✅ Registro guardado');
   }
 }
 function clearF(tab){
-  ['sem','tie','div67','dpto','cod','pv','ref','si','mot','obs'].forEach(f=>{
+  ['sem','tie','div67','dpto','cod','pv','ref','si','mot','obs','ta','pt'].forEach(f=>{
     const el=document.getElementById(tab+'-'+f);if(el)el.value='';
   });
   const areaEl=document.getElementById(tab+'-area');if(areaEl)areaEl.value='';
   const dec=document.getElementById(tab+'-dec');
-  if(dec) dec.value=(tab==='rt'||tab==='rs'||tab==='req')?'Revisar en Tiendas':'';
+  if(dec){ if(tab==='rt') dec.value='Revisar en Tiendas'; else if(tab==='rs') dec.value='Pendiente'; else if(tab==='req') dec.value='Revisar en Tiendas'; else dec.value=''; }
   [tab+'-p1',tab+'-p2'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='';});
   const s1=document.getElementById(tab+'-s1');if(s1)s1.textContent='';
   [tab+'-f1',tab+'-f2'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const pm=document.getElementById(tab+'-pm');if(pm)pm.textContent='';
+  const discardBtn=document.getElementById(tab+'-f1-discard');if(discardBtn)discardBtn.style.display='none';
   _ocrSrc=''; _ocrTab='';
   f2u=[];
   const elList=document.getElementById(tab+'-el');
   if(elList) elList.innerHTML=`<div class="er" data-i="0">
     <div class="g"><label>11. EAN/SKU</label><input type="text" class="ei"></div>
-    <div class="g"><label>12. Cantidad</label><input type="number" class="ci" min="0" oninput="calcP(this)"></div>
+    <div class="g"><label>12. Cantidad</label>
+          <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+            <input type="text" inputmode="numeric" class="ci" placeholder="0" oninput="calcP(this)" style="width:70px;">
+            <button type="button" class="btn bs sm" style="font-size:.72rem;padding:4px 7px;white-space:nowrap;" onclick="(()=>{const ci=this.closest('.g').querySelector('.ci');ci.value='Toda la Referencia';calcP(ci);})()" title="Toda la Referencia">📦 Toda Ref.</button>
+          </div></div>
     <div class="g"><label>13. PVP s/IVA</label><input type="number" class="pi" step="0.01" oninput="calcP(this)"></div>
     <div class="g"><label>13b. PVP Total</label><div class="pvpd">$0.00</div></div>
     <div></div></div>`;
   updWkBtn(tab);
 }
-function openNW(tab){nvTab=tab;document.getElementById('ov-nw').classList.add('show');}
+function openNW(tab){
+  nvTab=tab;
+  const msg = document.getElementById('ov-nw-msg');
+  if(msg){
+    if(tab==='dg'){
+      const total = R.dg.length;
+      msg.innerHTML = total
+        ? `⚠️ Se eliminarán <strong>todos los ${total} registros</strong> de Devolución General (incluidas todas las réplicas de tiendas) en <strong>todos los dispositivos</strong>. Esta acción no se puede deshacer. ¿Confirmar nueva semana?`
+        : 'Se limpiarán todos los campos y registros actuales. ¿Continuar?';
+    } else {
+      msg.textContent = 'Se limpiarán todos los campos y registros actuales. ¿Continuar?';
+    }
+  }
+  document.getElementById('ov-nw').classList.add('show');
+}
 function doNueva(){
   cOv('ov-nw');
-  // Solo limpia los registros activos de la pestaña actual, NO borra semanas guardadas (WK)
-  R[nvTab]=[];sR();clearF(nvTab);
-  if(nvTab==='rt')renderRT();else if(nvTab==='dg')renderDG();else renderRS();
-  showT('🆕 Nueva semana iniciada');
+  if(nvTab==='dg'){
+    // DG: borrar completamente el nodo en Firebase → se propaga a todos los dispositivos
+    const total = R.dg.length;
+    R.dg = [];
+    clearF('dg');
+    fbSetStatus('wait','⏳ Limpiando DG en todos los dispositivos...');
+    REF_R.child('dg').set({})
+      .then(()=>{
+        fbSetStatus('ok','✅ Nueva semana DG iniciada',new Date().toLocaleString('es-EC'));
+        showT('🆕 Nueva semana iniciada — ' + total + ' registros eliminados en todos los dispositivos');
+      })
+      .catch(()=>{
+        fbSetStatus('err','⚠️ Error limpiando DG','');
+        showT('⚠️ Error al limpiar. Intenta de nuevo.');
+      });
+    try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}
+    renderDG();
+    updateDGStatusBanner();
+  } else {
+    // RT / RS: limpia solo la pestaña local
+    R[nvTab]=[];saveTab(nvTab);clearF(nvTab);
+    if(nvTab==='rt') renderRT();
+    else renderRS();
+    showT('🆕 Nueva semana iniciada');
+  }
 }
 function openWk(tab){
   wkTab=tab;
@@ -1940,11 +2106,22 @@ function doSaveWk(){
   const nom=document.getElementById('wkn').value.trim();
   if(!nom){showT('⚠️ Ingrese nombre');return;}
   const rtMode=document.getElementById('ov-wk').getAttribute('data-rt-mode');
+  const stTienda=document.getElementById('ov-wk').getAttribute('data-st-tienda');
   let data, tabKey;
-  if(rtMode){
+  if(stTienda){
+    // ST mode removed — fallback to DG data
+    const fil = stTienda==='ALL'?'':stTienda;
+    data = fil ? R.dg.filter(r=>r.tienda===fil) : R.dg;
+    tabKey='rt';
+    document.getElementById('ov-wk').removeAttribute('data-st-tienda');
+  } else if(rtMode){
     // Guardado desde RT (originales o tienda)
-    const t=_rtActiveTienda;
-    data=rtMode==='orig'?R.rt.filter(r=>r._orig&&!r._copy):(R.rt.filter(r=>r._copy&&r.tienda===t));
+    if(rtMode==='orig'){
+      data=R.rt.filter(r=>r._orig&&!r._copy);
+    } else {
+      const fil=document.getElementById('rt-filter-tienda')?.value||'';
+      data=fil ? R.rt.filter(r=>r._copy&&r.tienda===fil) : R.rt.filter(r=>r._copy);
+    }
     tabKey='rt';
     document.getElementById('ov-wk').removeAttribute('data-rt-mode');
   } else {
@@ -1968,49 +2145,12 @@ function doSaveWk(){
 function sortR(data){
   return[...data].sort((a,b)=>{
     const ai=STORES.indexOf(a.tienda),bi=STORES.indexOf(b.tienda);
-    const ts=ai===-1?999:ai, tb2=bi===-1?999:bi;
-    if(ts!==tb2)return ts-tb2;
+    if(ai!==bi)return ai-bi;
     const dc=(a.dpto||'').localeCompare(b.dpto||'');
     if(dc!==0)return dc;
     return(a.codigo||'').localeCompare(b.codigo||'');
   });
 }
-
-// ─────────────────────────────────────────────
-// PASSWORD SYSTEM
-// ─────────────────────────────────────────────
-const APP_PWD = '1234';
-let _pwdCallback = null;
-
-function requirePwd(title, msg, callback){
-  _pwdCallback = callback;
-  document.getElementById('pwd-title').textContent = title;
-  document.getElementById('pwd-msg').textContent = msg;
-  document.getElementById('pwd-inp').value = '';
-  document.getElementById('pwd-err').textContent = '';
-  document.getElementById('ov-pwd').classList.add('show');
-  setTimeout(()=>document.getElementById('pwd-inp').focus(), 80);
-}
-
-function confirmPwd(){
-  const val = document.getElementById('pwd-inp').value;
-  if(val === APP_PWD){
-    document.getElementById('ov-pwd').classList.remove('show');
-    document.getElementById('pwd-inp').value = '';
-    if(_pwdCallback){ _pwdCallback(); _pwdCallback = null; }
-  } else {
-    document.getElementById('pwd-err').textContent = '❌ Contraseña incorrecta';
-    document.getElementById('pwd-inp').value = '';
-    document.getElementById('pwd-inp').focus();
-  }
-}
-
-function cancelPwd(){
-  document.getElementById('ov-pwd').classList.remove('show');
-  document.getElementById('pwd-inp').value = '';
-  _pwdCallback = null;
-}
-
 function fPVP(e){return e.pvp?'$'+parseFloat(e.pvp).toFixed(2):'';}
 function fTot(e){const c=parseFloat(e.cantidad)||0,p=parseFloat(e.pvp)||0;return c&&p?'$'+(c*p).toFixed(2):'';}
 function decBadge(d){
@@ -2019,8 +2159,13 @@ function decBadge(d){
   if(d==='Revisar en Tiendas')return`<span class="tr">Revisar</span>`;
   return esc(d||'');
 }
-function decSelOpts(cur){
-  return['Revisar en Tiendas','Devolución','No Devolución'].map(o=>`<option value="${o}"${cur===o?' selected':''}>${o}</option>`).join('');
+function decSelOpts(cur, tab){
+  // RS incluye "Pendiente" como opción y como default cuando no hay selección
+  const opts = tab==='rs'
+    ? ['Pendiente','Revisar en Tiendas','Devolución','No Devolución']
+    : ['Revisar en Tiendas','Devolución','No Devolución'];
+  const effective = cur || (tab==='rs' ? 'Pendiente' : '');
+  return opts.map(o=>`<option value="${o}"${effective===o?' selected':''}>${o}</option>`).join('');
 }
 function storeSelOpts(cur){
   return STORES.map(s=>`<option value="${s}"${cur===s?' selected':''}>${s}</option>`).join('');
@@ -2032,15 +2177,16 @@ function storeSelOpts(cur){
 function mkRow(rec,ean,ei,rn,tabKey){
   const rid=String(rec.id),eid=ei;
   const delEan=rec.eans.length>1?`<button class="btn bd sm" onclick="delEAN('${tabKey}','${rid}',${eid})" title="Eliminar EAN"><span class="ic">🗑️</span></button>`:'';
-  // Mostrar fotos: principal con borde rojo y ⭐, resto en strip, click abre galería
+  // Mostrar fotos y controles solo en la primera fila EAN (ei===0)
   let f2html='';
-  if(rec.foto2&&rec.foto2.length>0){
+  if(ei===0 && rec.foto2&&rec.foto2.length>0){
     const rId=String(rec.id);
     const tKey2=tabKey;
     f2html='<div class="foto-strip">'+rec.foto2.map((src,fi)=>{
       const isPrinc=fi===0;
       return`<div class="foto-thumb${isPrinc?' principal':''}">
         <img src="${src}" style="height:${isPrinc?70:55}px;cursor:pointer;" onclick="openGalLB(${fi},'rec-${rId}')" title="${isPrinc?'⭐ Principal — click para ver':'Click para ver galería'}">
+        <button class="del-btn" onclick="delRecFoto('${tKey2}','${rId}',${fi})" title="Eliminar esta foto">✕</button>
       </div>`;
     }).join('')+'</div>';
   }
@@ -2056,29 +2202,85 @@ function mkRow(rec,ean,ei,rn,tabKey){
     <td><input class="ie" value="${esc(rec.ref)}" oninput="eF('${tabKey}','${rid}','ref',this.value)" style="width:48px;"></td>
     <td><input class="ie" value="${esc(rec.semIngreso)}" oninput="eF('${tabKey}','${rid}','semIngreso',this.value)" style="width:52px;"></td>
     <td><input class="ie" value="${esc(ean.ean)}" oninput="eE('${tabKey}','${rid}',${eid},'ean',this.value)" style="width:96px;"></td>
-    <td><input class="ie" type="number" value="${esc(ean.cantidad)}" oninput="eEC('${tabKey}','${rid}',${eid},'cantidad',this)" style="width:52px;"></td>
+    <td><div style="display:flex;gap:2px;align-items:center;"><input class="ie" type="text" inputmode="numeric" value="${esc(ean.cantidad)}" oninput="eEC('${tabKey}','${rid}',${eid},'cantidad',this)" style="width:52px;"><button type="button" onclick="(()=>{const inp=this.previousElementSibling;inp.value='Toda la Referencia';inp.dispatchEvent(new Event('input'));})()" style="background:#555;color:#fff;border:none;border-radius:4px;padding:1px 3px;font-size:.58rem;cursor:pointer;white-space:nowrap;line-height:1.4;">📦</button></div></td>
     <td><input class="ie" type="number" value="${esc(ean.pvp)}" step="0.01" oninput="eEC('${tabKey}','${rid}',${eid},'pvp',this)" style="width:62px;"></td>
     <td id="pt-${rid}-${eid}" style="font-weight:700;color:#3b0764;">${fTot(ean)}</td>
     <td><textarea class="ie-t" oninput="eF('${tabKey}','${rid}','motivo',this.value)" style="width:108px;">${esc(rec.motivo)}</textarea></td>
-    <td><select class="ie-s" onchange="eDec('${tabKey}','${rid}',this.value)" style="width:110px;">${decSelOpts(rec.decision)}</select></td>
+    <td><select class="ie-s" onchange="eDec('${tabKey}','${rid}',this.value)" style="width:110px;">${decSelOpts(rec.decision,tabKey)}</select></td>
     <td><textarea class="ie-t" oninput="eF('${tabKey}','${rid}','observaciones',this.value)" style="width:108px;">${esc(rec.observaciones)}</textarea></td>
-    ${tabKey==='dg'?`
-    <td><input class="ie" value="${esc(rec.tablaAsig||'')}" oninput="eF('dg','${rid}','tablaAsig',this.value)" style="width:100px;"></td>
-    <td><input class="ie" value="${esc(rec.pedidoTraslado||'')}" oninput="eF('dg','${rid}','pedidoTraslado',this.value)" style="width:100px;"></td>
-    `:'<td></td><td></td>'}
     <td>
       ${f2html}
-      <div style="margin-top:4px;display:flex;gap:3px;flex-wrap:wrap;">
+      ${ei===0?`<div style="margin-top:4px;display:flex;gap:3px;flex-wrap:wrap;">
         <input type="file" id="add-f2-${rid}" accept="image/*" multiple style="display:none;" onchange="addMorePhotos('${tabKey}','${rid}',this)">
-        <button class="btn bo sm" style="font-size:.65rem;padding:2px 5px;" onclick="document.getElementById('add-f2-${rid}').click()" title="Agregar fotos"><span class="ic">➕</span>Foto</button>
-        <button class="btn bd sm" style="font-size:.65rem;padding:2px 5px;" onclick="clearFotos('${tabKey}','${rid}')" title="Limpiar fotos"><span class="ic">🗑️</span>Fotos</button>
-      </div>
+        <input type="file" id="add-f2-cam-${rid}" accept="image/*" capture="environment" style="display:none;" onchange="addMorePhotos('${tabKey}','${rid}',this)">
+        <button class="btn bo sm" style="font-size:.65rem;padding:2px 5px;" onclick="document.getElementById('add-f2-${rid}').click()" title="Agregar desde galería"><span class="ic">🖼️</span>Galería</button>
+        <button class="btn bo sm" style="font-size:.65rem;padding:2px 5px;background:#0e7490;color:#fff;border-color:#0e7490;" onclick="document.getElementById('add-f2-cam-${rid}').click()" title="Tomar foto"><span class="ic">📷</span>Foto</button>
+        <button class="btn bd sm" style="font-size:.65rem;padding:2px 5px;" onclick="clearFotos('${tabKey}','${rid}')" title="Limpiar todas las fotos"><span class="ic">🗑️</span>Fotos</button>
+      </div>`:''}
     </td>
     <td style="white-space:nowrap;">
       <button class="btn bo sm" onclick="addEAN('${tabKey}','${rid}')" title="Añadir EAN"><span class="ic">➕</span></button>
       ${delEan}
     </td>
     <td><button class="btn bd sm" onclick="delRec('${tabKey}','${rid}')"><span class="ic">🗑️</span></button></td>
+  </tr>`;
+}
+
+// ─────────────────────────────────────────────
+// FILA ESPECIAL PARA DG — con campos Tabla Asignación y # Pedido Traslado
+// ─────────────────────────────────────────────
+function mkRowDG(rec,ean,ei,rn){
+  const rid=String(rec.id),eid=ei;
+  const delEan=rec.eans.length>1?`<button class="btn bd sm" onclick="delEAN('dg','${rid}',${eid})" title="Eliminar EAN"><span class="ic">🗑️</span></button>`:'';
+  let f2html='';
+  if(ei===0 && rec.foto2&&rec.foto2.length>0){
+    const rId=String(rec.id);
+    f2html='<div class="foto-strip">'+rec.foto2.map((src,fi)=>{
+      const isPrinc=fi===0;
+      return`<div class="foto-thumb${isPrinc?' principal':''}">
+        <img src="${src}" style="height:${isPrinc?70:55}px;cursor:pointer;" onclick="openGalLB(${fi},'rec-${rId}')" title="${isPrinc?'⭐ Principal — click para ver':'Click para ver galería'}">
+        <button class="del-btn" onclick="delRecFoto('dg','${rId}',${fi})" title="Eliminar esta foto">✕</button>
+      </div>`;
+    }).join('')+'</div>';
+  }
+  const copyBadge=rec._copy?`<span style="background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 5px;font-size:.6rem;font-weight:700;display:block;margin-top:2px;">📋 Copia</span>`:'';
+  return`<tr data-rid="${rid}" data-ei="${eid}"${rec._copy?' style="background:#f0fdf4;"':''}>
+    <td>${rn}${copyBadge}</td>
+    <td><input class="ie" value="${esc(rec.semana)}" oninput="eF('dg','${rid}','semana',this.value)" style="width:76px;"></td>
+    <td><select class="ie-s" onchange="eF('dg','${rid}','tienda',this.value)" style="width:110px;">${storeSelOpts(rec.tienda)}</select></td>
+    <td><input class="ie" value="${esc(rec.dpto)}" oninput="eF('dg','${rid}','dpto',this.value)" style="width:52px;"></td>
+    <td><input class="ie" value="${esc(rec.codigo)}" oninput="eF('dg','${rid}','codigo',this.value)" style="width:70px;"></td>
+    <td><input class="ie" value="${esc(rec.proveedor)}" oninput="eF('dg','${rid}','proveedor',this.value)" style="width:90px;"></td>
+    <td><input class="ie" value="${esc(rec.ref)}" oninput="eF('dg','${rid}','ref',this.value)" style="width:48px;"></td>
+    <td><input class="ie" value="${esc(rec.semIngreso)}" oninput="eF('dg','${rid}','semIngreso',this.value)" style="width:52px;"></td>
+    <td><input class="ie" value="${esc(ean.ean)}" oninput="eE('dg','${rid}',${eid},'ean',this.value)" style="width:96px;"></td>
+    <td><div style="display:flex;gap:2px;align-items:center;"><input class="ie" type="text" inputmode="numeric" value="${esc(ean.cantidad)}" oninput="eEC('dg','${rid}',${eid},'cantidad',this)" style="width:52px;"><button type="button" onclick="(()=>{const inp=this.previousElementSibling;inp.value='Toda la Referencia';inp.dispatchEvent(new Event('input'));})()" style="background:#555;color:#fff;border:none;border-radius:4px;padding:1px 3px;font-size:.58rem;cursor:pointer;white-space:nowrap;line-height:1.4;">📦</button></div></td>
+    <td><input class="ie" type="number" value="${esc(ean.pvp)}" step="0.01" oninput="eEC('dg','${rid}',${eid},'pvp',this)" style="width:62px;"></td>
+    <td id="pt-${rid}-${eid}" style="font-weight:700;color:#3b0764;">${fTot(ean)}</td>
+    <td><textarea class="ie-t" oninput="eF('dg','${rid}','motivo',this.value)" style="width:108px;">${esc(rec.motivo)}</textarea></td>
+    <td><select class="ie-s" onchange="eDec('dg','${rid}',this.value)" style="width:110px;">${decSelOpts(rec.decision,'dg')}</select></td>
+    <td><textarea class="ie-t" oninput="eF('dg','${rid}','observaciones',this.value)" style="width:108px;">${esc(rec.observaciones)}</textarea></td>
+    <td>
+      <input class="ie" value="${esc(rec.tablaAsignacion||'')}" oninput="eF('dg','${rid}','tablaAsignacion',this.value)" style="width:110px;" placeholder="Tabla Asignación">
+    </td>
+    <td>
+      <input class="ie" value="${esc(rec.pedidoTraslado||'')}" oninput="eF('dg','${rid}','pedidoTraslado',this.value)" style="width:110px;" placeholder="# Pedido Traslado">
+    </td>
+    <td>
+      ${f2html}
+      ${ei===0?`<div style="margin-top:4px;display:flex;gap:3px;flex-wrap:wrap;">
+        <input type="file" id="add-f2-${rid}" accept="image/*" multiple style="display:none;" onchange="addMorePhotos('dg','${rid}',this)">
+        <input type="file" id="add-f2-cam-${rid}" accept="image/*" capture="environment" style="display:none;" onchange="addMorePhotos('dg','${rid}',this)">
+        <button class="btn bo sm" style="font-size:.65rem;padding:2px 5px;" onclick="document.getElementById('add-f2-${rid}').click()" title="Agregar desde galería"><span class="ic">🖼️</span>Galería</button>
+        <button class="btn bo sm" style="font-size:.65rem;padding:2px 5px;background:#0e7490;color:#fff;border-color:#0e7490;" onclick="document.getElementById('add-f2-cam-${rid}').click()" title="Tomar foto"><span class="ic">📷</span>Foto</button>
+        <button class="btn bd sm" style="font-size:.65rem;padding:2px 5px;" onclick="clearFotos('dg','${rid}')" title="Limpiar fotos"><span class="ic">🗑️</span>Fotos</button>
+      </div>`:''}
+    </td>
+    <td style="white-space:nowrap;">
+      <button class="btn bo sm" onclick="addEAN('dg','${rid}')" title="Añadir EAN"><span class="ic">➕</span></button>
+      ${delEan}
+    </td>
+    <td><button class="btn bd sm" onclick="delRec('dg','${rid}')"><span class="ic">🗑️</span></button></td>
   </tr>`;
 }
 
@@ -2091,20 +2293,31 @@ function mkRowCopy(rec, ean, ei, rn){
     ? `<button class="btn bd sm" onclick="delEAN('rt','${rid}',${eid})" title="Eliminar EAN"><span class="ic">🗑️</span></button>`
     : '';
   let f2html = '';
-  if(rec.foto2 && rec.foto2.length>0){
+  if(ei===0 && rec.foto2 && rec.foto2.length>0){
     const rId2=String(rec.id);
     f2html='<div class="foto-strip">'+rec.foto2.map((src,fi)=>{
       const isPrinc=fi===0;
       return`<div class="foto-thumb${isPrinc?' principal':''}">
         <img src="${src}" style="height:${isPrinc?70:55}px;cursor:pointer;" onclick="openGalLB(${fi},'rec-${rId2}')" title="${isPrinc?'⭐ Principal':'Ver galería'}">
+        <button class="del-btn" onclick="delRecFoto('rt','${rId2}',${fi})" title="Eliminar esta foto">✕</button>
       </div>`;
     }).join('')+'</div>';
   }
   // ¿Ya está en DG?
   const enDG = R.dg.some(d => String(d._srcId) === rid);
-  const devBtn = enDG
-    ? `<button class="btn-dev ya" disabled title="Ya registrado en Devolución General">✅ En DG</button>`
-    : `<button class="btn-dev" onclick="registrarDevolucion('${rid}')" title="Registrar en Devolución General">📦 Registrar Dev.</button>`;
+  const dgRec = R.dg.find(d => String(d._srcId) === rid);
+  const dgDec = dgRec?.decision||'';
+  let devBtn;
+  if(enDG){
+    devBtn = `<div style="display:flex;flex-direction:column;gap:3px;">
+      <span style="background:#d1fae5;color:#065f46;border-radius:4px;padding:2px 6px;font-size:.65rem;font-weight:700;">✅ En DG — ${esc(dgDec)}</span>
+    </div>`;
+  } else {
+    devBtn = `<div style="display:flex;flex-direction:column;gap:3px;">
+      <button class="btn-dev" onclick="registrarDevolucionConDec('${rid}','Devolución')" title="Registrar como Devolución" style="background:#dc2626;color:#fff;border:none;border-radius:5px;padding:4px 8px;font-size:.7rem;font-weight:700;cursor:pointer;">📦 Devolución</button>
+      <button class="btn-dev" onclick="registrarDevolucionConDec('${rid}','No Devolución')" title="Registrar como No Devolución" style="background:#15803d;color:#fff;border:none;border-radius:5px;padding:4px 8px;font-size:.7rem;font-weight:700;cursor:pointer;">✅ No Devolución</button>
+    </div>`;
+  }
 
   return `<tr data-rid="${rid}" data-ei="${eid}" style="background:#f0fdf4;">
     <td>${rn}<span style="background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 5px;font-size:.6rem;font-weight:700;display:block;margin-top:2px;">📋 Copia</span></td>
@@ -2116,11 +2329,11 @@ function mkRowCopy(rec, ean, ei, rn){
     <td><input class="ie" value="${esc(rec.ref)}" oninput="eF('rt','${rid}','ref',this.value)" style="width:48px;"></td>
     <td><input class="ie" value="${esc(rec.semIngreso)}" oninput="eF('rt','${rid}','semIngreso',this.value)" style="width:52px;"></td>
     <td><input class="ie" value="${esc(ean.ean)}" oninput="eE('rt','${rid}',${eid},'ean',this.value)" style="width:96px;"></td>
-    <td><input class="ie" type="number" value="${esc(ean.cantidad)}" oninput="eEC('rt','${rid}',${eid},'cantidad',this)" style="width:52px;"></td>
+    <td><div style="display:flex;gap:2px;align-items:center;"><input class="ie" type="text" inputmode="numeric" value="${esc(ean.cantidad)}" oninput="eEC('rt','${rid}',${eid},'cantidad',this)" style="width:52px;"><button type="button" onclick="(()=>{const inp=this.previousElementSibling;inp.value='Toda la Referencia';inp.dispatchEvent(new Event('input'));})()" style="background:#555;color:#fff;border:none;border-radius:4px;padding:1px 3px;font-size:.58rem;cursor:pointer;white-space:nowrap;line-height:1.4;">📦</button></div></td>
     <td><input class="ie" type="number" value="${esc(ean.pvp)}" step="0.01" oninput="eEC('rt','${rid}',${eid},'pvp',this)" style="width:62px;"></td>
     <td id="pt-${rid}-${eid}" style="font-weight:700;color:#3b0764;">${fTot(ean)}</td>
     <td><textarea class="ie-t" oninput="eF('rt','${rid}','motivo',this.value)" style="width:108px;">${esc(rec.motivo)}</textarea></td>
-    <td><select class="ie-s" onchange="eF('rt','${rid}','decision',this.value)" style="width:110px;">${decSelOpts(rec.decision)}</select></td>
+    <td><select class="ie-s" onchange="eF('rt','${rid}','decision',this.value)" style="width:110px;">${decSelOpts(rec.decision,'rt')}</select></td>
     <td><textarea class="ie-t" oninput="eF('rt','${rid}','observaciones',this.value)" style="width:108px;">${esc(rec.observaciones)}</textarea></td>
     <td style="white-space:nowrap;">${f2html}</td>
     <td style="white-space:nowrap;">
@@ -2135,14 +2348,50 @@ function mkRowCopy(rec, ean, ei, rn){
 // ─────────────────────────────────────────────
 // REGISTRAR EN DEVOLUCIÓN — botón directo por fila
 // ─────────────────────────────────────────────
+// Registrar en DG con decisión específica (Devolución o No Devolución)
+function registrarDevolucionConDec(rid, decision){
+  const rec = R.rt.find(r => String(r.id) === rid);
+  if(!rec){ showT('⚠️ Registro no encontrado'); return; }
+
+  // Si ya existe en DG, actualizar decisión
+  const existing = R.dg.find(d => String(d._srcId) === rid);
+  if(existing){
+    existing.decision = decision;
+    rec.decision = decision;
+    sDG([existing.id]);
+    renderDG();
+    renderRTCopias();
+    showT(`✅ Decisión actualizada: ${decision} — ${rec.tienda}`);
+    return;
+  }
+
+  // Crear registro en DG
+  const clone = JSON.parse(JSON.stringify(rec));
+  clone.id = uid();
+  clone._tab = 'dg';
+  clone._srcId = rid;
+  clone._fromTab = 'rt';
+  clone.decision = decision;
+  R.dg.push(clone);
+
+  // Actualizar decisión en el registro RT (copia)
+  rec.decision = decision;
+
+  // Escribir solo este registro en DG con update() — no afecta otros dispositivos
+  sDG([clone.id]);
+  renderDG();
+  renderRTCopias();
+  showT(`✅ ${decision} registrada — ${rec.tienda} — sincronizando...`);
+}
+
 function registrarDevolucion(rid){
   const rec = R.rt.find(r => String(r.id) === rid);
   if(!rec){ showT('⚠️ Registro no encontrado'); return; }
 
   // ¿Ya existe en DG?
   if(R.dg.some(d => String(d._srcId) === rid)){
-    showT('ℹ️ Ya está registrado en Devolución General');
-    actualizarTiendaPanel(); // refrescar para mostrar estado actual
+    showT('ℹ️ Ya está registrado en Devolución General — ' + rec.tienda);
+    renderRTCopias();
     return;
   }
 
@@ -2155,31 +2404,31 @@ function registrarDevolucion(rid){
   clone.decision = 'Devolución';
   R.dg.push(clone);
 
-  // Actualizar también la decisión en el registro RT
+  // Actualizar también la decisión en el registro RT (copia)
   rec.decision = 'Devolución';
-  sR();
 
-  // Refrescar DG y el panel actual
+  // sDG() escribe solo records/dg → sincronización sin sobreescribir otros cambios concurrentes
+  sDG();
+
+  // Refrescar vista local
   renderDG();
-  actualizarTiendaPanel();
-  showT('✅ Registrado en Devolución General — ' + rec.tienda);
+  renderRTCopias();
+  showT('✅ Devolución registrada — ' + rec.tienda + ' — sincronizando...');
 }
 
 // ─────────────────────────────────────────────
 // ACTUALIZAR PANEL TIENDA (botón manual)
 // ─────────────────────────────────────────────
 function actualizarTiendaPanel(){
-  if(_rtActiveTienda === 'orig') return;
-  const recs = R.rt.filter(r => r._copy && r.tienda === _rtActiveTienda);
-  renderRTTienda(_rtActiveTienda, recs);
-  showT('🔄 Panel actualizado — ' + _rtActiveTienda);
+  renderRTCopias();
+  showT('🔄 Panel de tiendas actualizado');
 }
 
 // ─────────────────────────────────────────────
 // RENDER TABLES
 // ─────────────────────────────────────────────
 
-let _rtActiveTienda = 'orig'; // 'orig' o nombre de tienda
+let _rtActiveTienda = 'orig'; // kept for legacy compat (export functions)
 
 function renderRT(){
   const data = R.rt;
@@ -2187,49 +2436,26 @@ function renderRT(){
   if(!data.length){ wrap.style.display='none'; return; }
   wrap.style.display = 'block';
 
-  const origs  = data.filter(r => r._orig && !r._copy);
+  const origs = data.filter(r => r._orig && !r._copy);
   const copies = data.filter(r => r._copy);
-  const tiendasConCopias = STORES.filter(t => copies.some(r => r.tienda === t));
 
-  // Si la pestaña activa ya no existe, volver a orig
-  if(_rtActiveTienda !== 'orig' && !tiendasConCopias.includes(_rtActiveTienda)){
-    _rtActiveTienda = 'orig';
-  }
+  // ── Renderizar registros originales (con filtro) ──
+  renderRTOrigs(origs);
 
-  // ── Reconstruir barra de subpestañas ──
-  const bar = document.getElementById('rt-stab-bar');
-  bar.innerHTML = '';
-
-  const btnOrig = document.createElement('button');
-  btnOrig.className = 'rt-stab rt-stab-orig' + (_rtActiveTienda==='orig'?' act':'');
-  btnOrig.innerHTML = `🔵 Registros Originales <span class="rt-stab-badge">${origs.length}</span>`;
-  btnOrig.onclick = () => switchRTTab('orig');
-  bar.appendChild(btnOrig);
-
-  tiendasConCopias.forEach(t => {
-    const cnt = copies.filter(r => r.tienda === t).length;
-    const btn = document.createElement('button');
-    btn.className = 'rt-stab' + (_rtActiveTienda===t?' act':'');
-    btn.innerHTML = `🏪 ${t} <span class="rt-stab-badge">${cnt}</span>`;
-    btn.onclick = () => switchRTTab(t);
-    bar.appendChild(btn);
-  });
-
-  // ── Mostrar solo el panel activo ──
-  if(_rtActiveTienda === 'orig'){
-    document.getElementById('rt-panel-orig').style.display   = 'block';
-    document.getElementById('rt-panel-tienda').style.display = 'none';
-    renderRTOrigs(origs);
+  // ── Mostrar sección copias si existen ──
+  const copiasWrap = document.getElementById('rt-copias-wrap');
+  if(copies.length){
+    copiasWrap.style.display = 'block';
+    document.getElementById('rt-copias-count').textContent = copies.length + ' registros';
+    renderRTCopias();
   } else {
-    document.getElementById('rt-panel-orig').style.display   = 'none';
-    document.getElementById('rt-panel-tienda').style.display = 'block';
-    renderRTTienda(_rtActiveTienda, copies.filter(r => r.tienda === _rtActiveTienda));
+    copiasWrap.style.display = 'none';
   }
 }
 
-// refreshRTPanel: reconstruye el tbody activo (se llama tras añadir/eliminar EAN)
+// refreshRTPanel: reconstruye la vista activa (se llama tras añadir/eliminar EAN)
 function refreshRTPanel(){
-  _renderRTActivePanel();
+  renderRT();
 }
 
 function switchRTTab(key){
@@ -2240,49 +2466,106 @@ function switchRTTab(key){
 function renderRTOrigs(origs){
   const tb = document.getElementById('rt-tb');
   tb.innerHTML = '';
-  if(!origs.length){
-    tb.innerHTML = `<tr><td colspan="18" style="text-align:center;padding:30px;color:#aaa;">Sin registros originales.</td></tr>`;
+  // Apply filter
+  const fil = document.getElementById('rt-filter-orig')?.value || '';
+  const filtered = fil ? origs.filter(r => r.tienda === fil) : origs;
+  if(!filtered.length){
+    tb.innerHTML = `<tr><td colspan="18" style="text-align:center;padding:30px;color:#aaa;">${origs.length?'Sin registros para la tienda seleccionada.':'Sin registros originales.'}</td></tr>`;
     return;
   }
-  let rn=0, cs='';
-  sortR(origs).forEach(rec => {
+  let rn=0, cs='', cd='';
+  sortR(filtered).forEach(rec => {
     if(rec.tienda !== cs){
-      cs = rec.tienda;
+      cs = rec.tienda; cd='';
       const sr = document.createElement('tr');
       sr.className = 'sh';
       sr.innerHTML = `<td colspan="18">🏪 ${cs}</td>`;
       tb.appendChild(sr);
     }
+    if((rec.dpto||'') !== cd){
+      cd = rec.dpto||'';
+      if(cd){const dr=document.createElement('tr');dr.className='oh';dr.innerHTML=`<td colspan="18" style="padding-left:22px;">📂 ${esc(cd)}</td>`;tb.appendChild(dr);}
+    }
     rec.eans.forEach((ean,ei) => { rn++; tb.insertAdjacentHTML('beforeend', mkRow(rec,ean,ei,rn,'rt')); });
   });
 }
 
-function renderRTTienda(tienda, recs){
-  const tb    = document.getElementById('rt-tienda-tb');
-  const title = document.getElementById('rt-tienda-title');
-  // Cuántos ya están en DG
-  const enDGcnt = recs.filter(r => R.dg.some(d => String(d._srcId) === String(r.id))).length;
-  title.innerHTML = `🟢 <strong>${tienda}</strong> — ${recs.length} registro(s) copiado(s)` +
-    (enDGcnt > 0 ? ` <span style="background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 7px;font-size:.72rem;font-weight:700;margin-left:6px;">📦 ${enDGcnt} en DG</span>` : '');
+// Render copias por tienda (en la misma subpestaña, debajo de originales)
+function renderRTCopias(){
+  const copies = R.rt.filter(r => r._copy);
+  const tb = document.getElementById('rt-tienda-tb');
+  if(!tb) return;
+
+  // Actualizar contador
+  const countEl = document.getElementById('rt-copias-count');
+  if(countEl) countEl.textContent = copies.length + ' registros';
+
+  // Filtro seleccionado
+  const fil = document.getElementById('rt-filter-tienda')?.value || '';
+  const filtered = fil ? copies.filter(r => r.tienda === fil) : copies;
+
   tb.innerHTML = '';
-  if(!recs.length){
-    tb.innerHTML = `<tr><td colspan="19" style="text-align:center;padding:30px;color:#aaa;">Sin copias para esta tienda.</td></tr>`;
+  if(!filtered.length){
+    tb.innerHTML = `<tr><td colspan="19" style="text-align:center;padding:30px;color:#aaa;">${copies.length?'Sin copias para la tienda seleccionada.':'Sin copias. Use "Cargar a Otras Tiendas".'}</td></tr>`;
     return;
   }
+
+  // Agrupar por tienda
   let rn = 0;
-  sortR(recs).forEach(rec => {
-    rec.eans.forEach((ean, ei) => { rn++; tb.insertAdjacentHTML('beforeend', mkRowCopy(rec, ean, ei, rn)); });
+  const tiendasEnFiltro = fil ? [fil] : STORES.filter(t => filtered.some(r => r.tienda === t));
+
+  tiendasEnFiltro.forEach(tienda => {
+    const recsT = filtered.filter(r => r.tienda === tienda);
+    if(!recsT.length) return;
+    const enDGcnt = recsT.filter(r => R.dg.some(d => String(d._srcId) === String(r.id))).length;
+    // Cabecera de tienda
+    const hdr = document.createElement('tr');
+    hdr.innerHTML = `<td colspan="19" style="background:#065f46;color:#fff;font-weight:700;font-size:.82rem;padding:7px 12px;letter-spacing:.5px;">
+      🏪 ${tienda} — ${recsT.length} registro(s)${enDGcnt>0?` <span style="background:#a7f3d0;color:#065f46;border-radius:4px;padding:1px 7px;font-size:.72rem;margin-left:6px;">📦 ${enDGcnt} en DG</span>`:''}
+    </td>`;
+    tb.appendChild(hdr);
+
+    let cd = '';
+    sortR(recsT).forEach(rec => {
+      if((rec.dpto||'') !== cd){
+        cd = rec.dpto||'';
+        if(cd){const dr=document.createElement('tr');dr.className='oh';dr.innerHTML=`<td colspan="19" style="padding-left:22px;">📂 ${esc(cd)}</td>`;tb.appendChild(dr);}
+      }
+      rec.eans.forEach((ean, ei) => { rn++; tb.insertAdjacentHTML('beforeend', mkRowCopy(rec, ean, ei, rn)); });
+    });
   });
 }
 
-// Export Excel solo para la tienda activa
+// Export Excel para copias por tienda (usa el filtro activo)
+function exportXLTienda(){
+  const fil = document.getElementById('rt-filter-tienda')?.value || '';
+  const copies = R.rt.filter(r => r._copy);
+  const data = fil ? copies.filter(r => r.tienda === fil) : copies;
+  if(!data.length){ showT('⚠️ Sin datos para exportar'); return; }
+  const label = fil || 'Todas las Tiendas';
+  const hdr=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso',
+    'EAN/SKU','Cantidad','PVP s/IVA','PVP Total','Motivo','Decisión','Observaciones','Fecha'];
+  const rows=[hdr]; let rn=0;
+  sortR(data).forEach(rec=>(rec.eans||[]).forEach(ean=>{
+    rn++; const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
+    rows.push([rn,rec.semana,rec.tienda,rec.dpto||'',rec.codigo||'',rec.proveedor||'',rec.ref||'',rec.semIngreso||'',
+      ean.ean||'',ean.cantidad||'',fPVP(ean).replace('$',''),tot?'$'+tot.toFixed(2):'',
+      rec.motivo||'',rec.decision||'',rec.observaciones||'',rec.fecha||'']);
+  }));
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[4,14,18,10,12,22,10,10,16,8,10,10,28,18,28,16].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws,'Tiendas');
+  XLSX.writeFile(wb,`Deprati_RT_${label.replace(/ /g,'_')}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.xlsx`);
+  showT('📊 Excel exportado — '+label);
+}
 
-
-// Export PDF solo para la tienda activa (copias)
+// Export PDF para copias por tienda (usa el filtro activo)
 async function exportPDFTienda(){
-  const t = _rtActiveTienda;
-  if(t==='orig'){ exportPDF('rt'); return; }
-  const data = R.rt.filter(r => r._copy && r.tienda === t);
+  const fil = document.getElementById('rt-filter-tienda')?.value || '';
+  const copies = R.rt.filter(r => r._copy);
+  const data = fil ? copies.filter(r => r.tienda === fil) : copies;
+  const label = fil || 'Todas las Tiendas';
   if(!data.length){ showT('⚠️ Sin datos para exportar'); return; }
   showT('⏳ Generando PDF tienda...');
   const{jsPDF}=window.jspdf;
@@ -2297,7 +2580,7 @@ async function exportPDFTienda(){
   function drawHdr(y,pg){
     doc.setFontSize(13);doc.setTextColor(204,0,0);doc.text('DEPRATI — REGISTRO DE NOVEDADES',ML,y+5);
     doc.setFontSize(7.5);doc.setTextColor(80);
-    doc.text(`Revisión en Tienda — ${t}   |   ${new Date().toLocaleString('es-EC')}   |   Pág. ${pg}`,ML,y+11);
+    doc.text(`Revisión en Tienda — ${label}   |   ${new Date().toLocaleString('es-EC')}   |   Pág. ${pg}`,ML,y+11);
     doc.setDrawColor(204,0,0);doc.setLineWidth(0.4);doc.line(ML,y+13,pW-ML,y+13);
     const hy=y+15;let x=ML;
     doc.setFillColor(204,0,0);doc.setTextColor(255,255,255);doc.setFontSize(5.2);doc.setFont(undefined,'bold');
@@ -2316,8 +2599,8 @@ async function exportPDFTienda(){
         (rec.fecha||'').substring(0,16),''];
       if(rn%2===0)doc.setFillColor(255,245,245);else doc.setFillColor(255,255,255);
       doc.setDrawColor(218,218,218);doc.setLineWidth(0.2);doc.rect(ML,y,usW,RH,'FD');
-      doc.setTextColor(40);doc.setFontSize(5.2);doc.setFont(undefined,'normal');
-      let x=ML;cells.forEach((t2,i)=>{doc.text(String(t2),x+1,y+3.8,{maxWidth:cW[i]-1.4});x+=cW[i];});
+      doc.setTextColor(40);doc.setFontSize(14);doc.setFont(undefined,'normal');
+      let x=ML;cells.forEach((t2,i)=>{doc.text(String(t2),x+1,y+7,{maxWidth:cW[i]-1.4});x+=cW[i];});
       if(rec.foto2?.length>0){
         const fX=ML+cW.slice(0,-1).reduce((a,b)=>a+b,0);
         let fx2=fX+1;
@@ -2332,22 +2615,28 @@ async function exportPDFTienda(){
       y+=RH;
     }
   }
-  doc.save(`Deprati_RT_${t.replace(/ /g,'_')}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.pdf`);
-  showT('📄 PDF exportado para '+t);
+  doc.save(`Deprati_RT_${label.replace(/ /g,'_')}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.pdf`);
+  showT('📄 PDF exportado — '+label);
 }
 
-// Abrir modal para guardar RT en Consultar (originales o tienda activa)
+// Abrir modal para guardar RT en Consultar (originales o copias filtradas)
 let _wkRTMode='orig';
 function openWkRT(mode){
   _wkRTMode=mode;
-  const t=_rtActiveTienda;
-  const data=mode==='orig'?R.rt.filter(r=>r._orig&&!r._copy):(R.rt.filter(r=>r._copy&&r.tienda===t));
+  let data, labelSuffix;
+  if(mode==='orig'){
+    data=R.rt.filter(r=>r._orig&&!r._copy);
+    labelSuffix='Originales';
+  } else {
+    const fil=document.getElementById('rt-filter-tienda')?.value||'';
+    data=fil ? R.rt.filter(r=>r._copy&&r.tienda===fil) : R.rt.filter(r=>r._copy);
+    labelSuffix=fil?fil:'Todas las Tiendas';
+  }
   if(!data.length){showT('⚠️ Sin registros para guardar');return;}
   const sem=data[0]?.semana||'';
-  const label=mode==='orig'?`${sem} — Originales`:`${sem} — ${t}`;
+  const label=`${sem} — ${labelSuffix}`;
   document.getElementById('ov-wk-h').textContent='📁 Guardar en Consultar';
   document.getElementById('wkn').value=label;
-  // Marcar modo RT especial
   document.getElementById('ov-wk').setAttribute('data-rt-mode',mode);
   document.getElementById('ov-wk').classList.add('show');
 }
@@ -2356,43 +2645,84 @@ function openWkRT(mode){
 function renderDG(){
   const sec=document.getElementById('dg-ts');
   const data=R.dg;
+  // Siempre actualizar el banner, independientemente de si hay datos
+  updateDGStatusBanner();
   if(!data.length){sec.style.display='none';return;}
   sec.style.display='block';
   const fil=document.getElementById('dg-ft')?.value||'';
   const filtered=fil?data.filter(r=>r.tienda===fil):data;
   const tb=document.getElementById('dg-tb');tb.innerHTML='';
+  const masivos = data.filter(x => x._fromTab === 'dg_masiva');
+  const collabSummary = document.getElementById('dg-collab-summary');
+  const collabGrid = document.getElementById('dg-collab-grid');
+  if(masivos.length && collabSummary && collabGrid){
+    collabSummary.style.display = 'block';
+    const tiendaMap = {};
+    masivos.forEach(r => {
+      if(!tiendaMap[r.tienda]) tiendaMap[r.tienda] = {total:0, dev:0, noDev:0, pend:0};
+      tiendaMap[r.tienda].total++;
+      if(r.decision === 'Devolución') tiendaMap[r.tienda].dev++;
+      else if(r.decision === 'No Devolución') tiendaMap[r.tienda].noDev++;
+      else tiendaMap[r.tienda].pend++;
+    });
+    collabGrid.innerHTML = Object.entries(tiendaMap).map(([tienda, s]) => {
+      const pct = Math.round(((s.dev + s.noDev) / s.total) * 100);
+      const allDone = pct === 100;
+      const bg = allDone ? '#d1fae5' : s.pend === s.total ? '#fef9c3' : '#dbeafe';
+      const clr = allDone ? '#065f46' : s.pend === s.total ? '#854d0e' : '#1e40af';
+      return `<div style="background:${bg};color:${clr};border-radius:6px;padding:3px 8px;font-size:.7rem;font-weight:700;white-space:nowrap;" title="${tienda}: ${s.dev} dev / ${s.noDev} no dev / ${s.pend} pendiente">
+        ${allDone?'✅':'⏳'} ${tienda.length>10?tienda.substring(0,10)+'…':tienda} ${pct}%
+        ${s.dev?`<span style="color:#b91c1c;">(${s.dev}📦)</span>`:''}
+        ${s.noDev?`<span style="color:#166534;">(${s.noDev}✅)</span>`:''}
+      </div>`;
+    }).join('');
+  } else if(collabSummary){
+    collabSummary.style.display = 'none';
+  }
 
-  const devs=filtered.filter(r=>r.decision==='Devolución'||!r.decision||r.decision==='');
-  const noDevs=filtered.filter(r=>r.decision==='No Devolución');
+  // Tres grupos: Pendiente/Revisar, Devolución, No Devolución
+  const revisar  = filtered.filter(r=>!r.decision||r.decision===''||r.decision==='Revisar en Tiendas');
+  const devs     = filtered.filter(r=>r.decision==='Devolución');
+  const noDevs   = filtered.filter(r=>r.decision==='No Devolución');
 
-  // Sección DEVOLUCIÓN
-  if(devs.length){
+  function renderSection(recs, bgColor, label){
+    if(!recs.length) return;
     const hdr=document.createElement('tr');
-    hdr.innerHTML=`<td colspan="20" style="background:#cc0000;color:#fff;font-weight:700;font-size:.82rem;padding:7px 12px;letter-spacing:.5px;">📦 DEVOLUCIONES (${devs.length})</td>`;
+    hdr.innerHTML=`<td colspan="20" style="background:${bgColor};color:#fff;font-weight:700;font-size:.82rem;padding:7px 12px;letter-spacing:.5px;">${label} (${recs.length})</td>`;
     tb.appendChild(hdr);
-    let rn=0,cs='';
-    sortR(devs).forEach(rec=>{
-      if(rec.tienda!==cs){cs=rec.tienda;const sr=document.createElement('tr');sr.className='sh';sr.innerHTML=`<td colspan="20">🏪 ${cs}</td>`;tb.appendChild(sr);}
-      rec.eans.forEach((ean,ei)=>{rn++;tb.insertAdjacentHTML('beforeend',mkRow(rec,ean,ei,rn,'dg'));});
+    let rn=0,cs='',cd='';
+    sortR(recs).forEach(rec=>{
+      if(rec.tienda!==cs){
+        cs=rec.tienda;cd='';
+        const sr=document.createElement('tr');sr.className='sh';
+        sr.innerHTML=`<td colspan="20">🏪 ${cs}</td>`;tb.appendChild(sr);
+      }
+      if((rec.dpto||'')!==cd){
+        cd=rec.dpto||'';
+        if(cd){const dr=document.createElement('tr');dr.className='oh';dr.innerHTML=`<td colspan="20" style="padding-left:22px;">📂 ${esc(cd)}</td>`;tb.appendChild(dr);}
+      }
+      rec.eans.forEach((ean,ei)=>{rn++;tb.insertAdjacentHTML('beforeend',mkRowDG(rec,ean,ei,rn));});
     });
   }
 
-  // Separador + sección NO DEVOLUCIÓN
-  if(noDevs.length){
-    if(devs.length){
-      const sep=document.createElement('tr');
-      sep.innerHTML=`<td colspan="20" style="height:8px;background:#f0f0f0;border:none;"></td>`;
-      tb.appendChild(sep);
-    }
-    const hdr2=document.createElement('tr');
-    hdr2.innerHTML=`<td colspan="20" style="background:#15803d;color:#fff;font-weight:700;font-size:.82rem;padding:7px 12px;letter-spacing:.5px;">✅ NO DEVOLUCIONES (${noDevs.length})</td>`;
-    tb.appendChild(hdr2);
-    let rn2=0,cs2='';
-    sortR(noDevs).forEach(rec=>{
-      if(rec.tienda!==cs2){cs2=rec.tienda;const sr=document.createElement('tr');sr.className='sh';sr.innerHTML=`<td colspan="20">🏪 ${cs2}</td>`;tb.appendChild(sr);}
-      rec.eans.forEach((ean,ei)=>{rn2++;tb.insertAdjacentHTML('beforeend',mkRow(rec,ean,ei,rn2,'dg'));});
-    });
+  // Sección Pendiente / Revisar en Tiendas (registros recién cargados)
+  renderSection(revisar, '#1d4ed8', '🔵 PENDIENTE / REVISAR EN TIENDAS');
+
+  // Separador
+  if(revisar.length && (devs.length||noDevs.length)){
+    tb.insertAdjacentHTML('beforeend','<tr><td colspan="20" style="height:6px;background:#f0f0f0;border:none;"></td></tr>');
   }
+
+  // Sección Devolución
+  renderSection(devs, '#cc0000', '📦 DEVOLUCIÓN');
+
+  // Separador
+  if(devs.length && noDevs.length){
+    tb.insertAdjacentHTML('beforeend','<tr><td colspan="20" style="height:6px;background:#f0f0f0;border:none;"></td></tr>');
+  }
+
+  // Sección No Devolución
+  renderSection(noDevs, '#15803d', '✅ NO DEVOLUCIÓN');
 }
 
 function renderRS(){
@@ -2401,9 +2731,10 @@ function renderRS(){
   if(!data.length){sec.style.display='none';return;}
   sec.style.display='block';
   const tb=document.getElementById('rs-tb');tb.innerHTML='';
-  let rn=0,cs='';
+  let rn=0,cs='',cd='';
   sortR(data).forEach(rec=>{
-    if(rec.tienda!==cs){cs=rec.tienda;const sr=document.createElement('tr');sr.className='sh';sr.innerHTML=`<td colspan="20">🏪 ${cs}</td>`;tb.appendChild(sr);}
+    if(rec.tienda!==cs){cs=rec.tienda;cd='';const sr=document.createElement('tr');sr.className='sh';sr.innerHTML=`<td colspan="18">🏪 ${cs}</td>`;tb.appendChild(sr);}
+    if((rec.dpto||'')!==cd){cd=rec.dpto||'';if(cd){const dr=document.createElement('tr');dr.className='oh';dr.innerHTML=`<td colspan="18" style="padding-left:22px;">📂 ${esc(cd)}</td>`;tb.appendChild(dr);}}
     rec.eans.forEach((ean,ei)=>{rn++;tb.insertAdjacentHTML('beforeend',mkRow(rec,ean,ei,rn,'rs'));});
   });
 }
@@ -2425,16 +2756,16 @@ function renderREQ(){
   if(sec)sec.style.display='block';
   const tb=document.getElementById('req-tb');if(!tb)return;
   tb.innerHTML='';
-  let rn=0,cs='';
+  let rn=0,cs='',cd='';
   sortR(data).forEach(rec=>{
-    if(rec.tienda!==cs){cs=rec.tienda;const sr=document.createElement('tr');sr.className='sh';sr.innerHTML=`<td colspan="21">🏪 ${cs}</td>`;tb.appendChild(sr);}
+    if(rec.tienda!==cs){cs=rec.tienda;cd='';const sr=document.createElement('tr');sr.className='sh';sr.innerHTML=`<td colspan="21">🏪 ${cs}</td>`;tb.appendChild(sr);}
+    if((rec.dpto||'')!==cd){cd=rec.dpto||'';if(cd){const dr=document.createElement('tr');dr.className='oh';dr.innerHTML=`<td colspan="21" style="padding-left:22px;">📂 ${esc(cd)}</td>`;tb.appendChild(dr);}}
     rec.eans.forEach((ean,ei)=>{
       rn++;
       const rid=String(rec.id);
       const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
       const rIdR=String(rec.id);
-      const f2html=rec.foto2?.length>0?('<div class="foto-strip">'+rec.foto2.map((src,fi)=>`<div class="foto-thumb${fi===0?' principal':''}"><img src="${src}" style="height:${fi===0?70:55}px;cursor:pointer;" onclick="openGalLB(${fi},'rec-${rIdR}')"></div>`).join('')+'</div>'):'';
-      const delEan=rec.eans.length>1?`<button class="btn bd sm" onclick="delEAN('req','${rid}',${ei})"><span class="ic">🗑️</span></button>`:'';
+      const f2html=rec.foto2?.length>0?('<div class="foto-strip">'+rec.foto2.map((src,fi)=>`<div class="foto-thumb${fi===0?' principal':''}"><img src="${src}" style="height:${fi===0?70:55}px;cursor:pointer;" onclick="openGalLB(${fi},'rec-${rIdR}')"><button class="del-btn" onclick="delRecFoto('req','${rIdR}',${fi})" title="Eliminar foto">✕</button></div>`).join('')+'</div><div style="margin-top:3px;"><input type="file" id="add-f2-req-${rIdR}" accept="image/*" multiple style="display:none;" onchange="addMorePhotos(\'req\',\'${rIdR}\',this)"><input type="file" id="add-f2-req-cam-${rIdR}" accept="image/*" capture="environment" style="display:none;" onchange="addMorePhotos(\'req\',\'${rIdR}\',this)"><button class="btn bo sm" style="font-size:.6rem;padding:2px 4px;" onclick="document.getElementById(\'add-f2-req-${rIdR}\').click()">🖼️Galería</button><button class="btn bo sm" style="font-size:.6rem;padding:2px 4px;background:#0e7490;color:#fff;" onclick="document.getElementById(\'add-f2-req-cam-${rIdR}\').click()">📷Foto</button><button class="btn bd sm" style="font-size:.6rem;padding:2px 4px;" onclick="clearFotos(\'req\',\'${rIdR}\')">🗑️Fotos</button></div>'):'<div style="margin-top:3px;"><input type="file" id="add-f2-req-${rIdR}" accept="image/*" multiple style="display:none;" onchange="addMorePhotos(\'req\',\'${rIdR}\',this)"><button class="btn bo sm" style="font-size:.6rem;padding:2px 4px;" onclick="document.getElementById(\'add-f2-req-${rIdR}\').click()">➕Foto</button></div>';      const delEan=rec.eans.length>1?`<button class="btn bd sm" onclick="delEAN('req','${rid}',${ei})"><span class="ic">🗑️</span></button>`:'';
       tb.insertAdjacentHTML('beforeend',`<tr data-rid="${rid}" data-ei="${ei}">
         <td><span style="background:#fef3c7;color:#92400e;border-radius:4px;padding:2px 6px;font-size:.67rem;font-weight:700;">${esc(rec.reqArea||'—')}</span></td>
         <td>${rn}</td>
@@ -2446,11 +2777,11 @@ function renderREQ(){
         <td><input class="ie" value="${esc(rec.ref)}" oninput="eF('req','${rid}','ref',this.value)" style="width:48px;"></td>
         <td><input class="ie" value="${esc(rec.semIngreso)}" oninput="eF('req','${rid}','semIngreso',this.value)" style="width:52px;"></td>
         <td><input class="ie" value="${esc(ean.ean)}" oninput="eE('req','${rid}',${ei},'ean',this.value)" style="width:96px;"></td>
-        <td><input class="ie" type="number" value="${esc(ean.cantidad)}" oninput="eEC('req','${rid}',${ei},'cantidad',this)" style="width:52px;"></td>
+        <td><div style="display:flex;gap:2px;align-items:center;"><input class="ie" type="text" inputmode="numeric" value="${esc(ean.cantidad)}" oninput="eEC('req','${rid}',${ei},'cantidad',this)" style="width:52px;"><button type="button" onclick="(()=>{const inp=this.previousElementSibling;inp.value='Toda la Referencia';inp.dispatchEvent(new Event('input'));})()" style="background:#555;color:#fff;border:none;border-radius:4px;padding:1px 3px;font-size:.58rem;cursor:pointer;white-space:nowrap;line-height:1.4;">📦</button></div></td>
         <td><input class="ie" type="number" value="${esc(ean.pvp)}" step="0.01" oninput="eEC('req','${rid}',${ei},'pvp',this)" style="width:62px;"></td>
         <td id="pt-${rid}-${ei}" style="font-weight:700;color:#3b0764;">${tot?'$'+tot.toFixed(2):''}</td>
         <td><textarea class="ie-t" oninput="eF('req','${rid}','motivo',this.value)" style="width:108px;">${esc(rec.motivo)}</textarea></td>
-        <td><select class="ie-s" onchange="eDecReq('${rid}',this.value)" style="width:110px;">${decSelOpts(rec.decision)}</select></td>
+        <td><select class="ie-s" onchange="eDecReq('${rid}',this.value)" style="width:110px;">${decSelOpts(rec.decision,'req')}</select></td>
         <td><textarea class="ie-t" oninput="eF('req','${rid}','observaciones',this.value)" style="width:108px;">${esc(rec.observaciones)}</textarea></td>
         <td>${reqStatusLabel(rec)}</td>
         <td>${f2html}</td>
@@ -2494,25 +2825,35 @@ function sendReqTo(rid,dest){
 // ─────────────────────────────────────────────
 
 const _debT={};
-function debSave(key,fn,ms=150){
+function debSave(key,fn,ms=800){
   clearTimeout(_debT[key]);
   _debT[key]=setTimeout(fn,ms);
 }
 
 /* eF: guarda campo de texto. NO re-renderiza (el valor ya está en el input).
    Solo re-renderiza si cambia 'tienda' (reordena pestañas). */
+// ── Guardar en Firebase por pestaña ──
+function saveTab(tab){
+  if(tab==='rt') sRT();
+  else if(tab==='dg') sDG();
+  else if(tab==='rs') sRS();
+  else if(tab==='req') sREQ();
+  else sR();
+}
+
 function eF(tab,id,field,val){
   const rec=R[tab].find(r=>String(r.id)===id);
   if(!rec) return;
   rec[field]=val;
   if(field==='tienda'){
-    sR();
+    if(tab==='dg') sDG([id]); else saveTab(tab);
     if(tab==='rt') renderRT();
     else if(tab==='dg') renderDG();
     else if(tab==='rs') renderRS();
     else if(tab==='req') renderREQ();
   } else {
-    debSave(tab+id+field, ()=>sR());
+    if(tab==='dg') debSave(tab+id+field, ()=>sDG([id]));
+    else debSave(tab+id+field, ()=>saveTab(tab));
   }
 }
 
@@ -2521,7 +2862,8 @@ function eE(tab,id,ei,field,val){
   const rec=R[tab].find(r=>String(r.id)===id);
   if(rec&&rec.eans[ei]){
     rec.eans[ei][field]=val;
-    debSave(tab+id+field+ei, ()=>sR());
+    if(tab==='dg') debSave(tab+id+field+ei, ()=>sDG([id]));
+    else debSave(tab+id+field+ei, ()=>saveTab(tab));
   }
 }
 
@@ -2530,7 +2872,8 @@ function eEC(tab,id,ei,field,inp){
   const rec=R[tab].find(r=>String(r.id)===id);
   if(!rec||!rec.eans[ei]) return;
   rec.eans[ei][field]=inp.value;
-  debSave(tab+id+field+ei, ()=>sR());
+  if(tab==='dg') debSave(tab+id+field+ei, ()=>sDG([id]));
+  else debSave(tab+id+field+ei, ()=>saveTab(tab));
   const c=parseFloat(rec.eans[ei].cantidad)||0, p=parseFloat(rec.eans[ei].pvp)||0;
   const cell=document.getElementById('pt-'+id+'-'+ei);
   if(cell){
@@ -2540,34 +2883,60 @@ function eEC(tab,id,ei,field,inp){
   }
 }
 
-/* eDec: guarda decisión y gestiona Devolución General SIEMPRE (no depende de visibilidad). */
+/* eDec: guarda decisión. Para DG usa update() atómico para no sobreescribir otras tiendas. */
 function eDec(tab,id,val){
   const rec=R[tab].find(r=>String(r.id)===id);
   if(!rec) return;
   const prev=rec.decision;
   rec.decision=val;
-  sR();
 
-  if(val==='Devolución' && tab!=='dg'){
+  // RS: si se selecciona "Revisar en Tiendas" → copiar registro a RT
+  if(tab==='rs' && val==='Revisar en Tiendas'){
+    const srcId=String(rec.id);
+    if(!R.rt.some(d=>String(d._srcId)===srcId)){
+      const clone=JSON.parse(JSON.stringify(rec));
+      clone.id=uid();clone._tab='rt';clone._srcId=srcId;
+      clone._fromTab='rs';clone._orig=true;clone.decision='Revisar en Tiendas';
+      R.rt.push(clone);
+      sRT(); sRS();
+      renderRT(); renderRS();
+      showT('🏪 Enviado a Revisión en Tienda');
+      return;
+    } else {
+      showT('ℹ️ Ya existe en Revisión en Tienda');
+      sRS();
+      return;
+    }
+  }
+
+  // DG: escritura atómica — solo este registro, no toca los demás
+  if(tab==='dg'){
+    sDG([id]);
+    return;
+  }
+
+  // RT / RS / REQ: guardar pestaña propia
+  saveTab(tab);
+
+  // Si la decisión cambia A Devolución → copiar a DG con update atómico
+  if(val==='Devolución'){
     const srcId=String(rec.id);
     if(!R.dg.some(d=>String(d._srcId)===srcId)){
       const clone=JSON.parse(JSON.stringify(rec));
-      clone.id=uid();
-      clone._tab='dg';
-      clone._srcId=srcId;
-      clone._fromTab=tab;
-      clone.decision='Devolución';
+      clone.id=uid();clone._tab='dg';clone._srcId=srcId;
+      clone._fromTab=tab;clone.decision='Devolución';
       R.dg.push(clone);
-      sR();
-      renderDG();   // siempre actualizar DG (aunque no esté visible, los datos quedan listos)
+      sDG([clone.id]);   // solo el registro nuevo
+      renderDG();
       showT('📦 Copiado a Devolución General');
     }
-  } else if(prev==='Devolución' && val!=='Devolución' && tab!=='dg'){
+  } else if(prev==='Devolución' && val!=='Devolución'){
+    // Si cambia DE Devolución → eliminar de DG solo el registro propio
     const srcId=String(rec.id);
-    const before=R.dg.length;
-    R.dg=R.dg.filter(d=>String(d._srcId)!==srcId);
-    if(R.dg.length!==before){
-      sR();
+    const toRemove=R.dg.filter(d=>String(d._srcId)===srcId);
+    if(toRemove.length){
+      toRemove.forEach(d=>sDGDelete(d.id));
+      R.dg=R.dg.filter(d=>String(d._srcId)!==srcId);
       renderDG();
       showT('↩️ Removido de Devolución General');
     }
@@ -2577,10 +2946,13 @@ function eDec(tab,id,val){
 function addEAN(tab,id){
   const rec=R[tab].find(r=>String(r.id)===id);
   if(!rec) return;
+  // Solo copiar PVP — EAN, cantidad y foto quedan vacíos
   const lastPvp=rec.eans[rec.eans.length-1]?.pvp||'';
   rec.eans.push({ean:'',cantidad:'',pvp:lastPvp});
-  sR();
-  if(tab==='rt') _renderRTActivePanel();
+  // No copiar fotos al añadir EAN — las fotos pertenecen al registro, no al EAN
+  // (rec.foto2 ya es compartida por el registro, no se duplica aquí)
+  if(tab==='dg') sDG([id]); else saveTab(tab);
+  if(tab==='rt') renderRT();
   else if(tab==='dg') renderDG();
   else if(tab==='rs') renderRS();
   else if(tab==='req') renderREQ();
@@ -2590,8 +2962,8 @@ function delEAN(tab,id,ei){
   const rec=R[tab].find(r=>String(r.id)===id);
   if(!rec||rec.eans.length<=1) return;
   rec.eans.splice(ei,1);
-  sR();
-  if(tab==='rt') _renderRTActivePanel();
+  if(tab==='dg') sDG([id]); else saveTab(tab);
+  if(tab==='rt') renderRT();
   else if(tab==='dg') renderDG();
   else if(tab==='rs') renderRS();
   else if(tab==='req') renderREQ();
@@ -2611,7 +2983,9 @@ function doDelRec(){
   const {tab,id}=_delPend;
   if(!tab||!id) return;
   R[tab]=R[tab].filter(r=>String(r.id)!==id);
-  sR();
+  // DG: eliminación atómica — solo borra este nodo, no toca otros
+  if(tab==='dg') sDGDelete(id);
+  else saveTab(tab);
   if(tab==='rt') renderRT();
   else if(tab==='dg') renderDG();
   else if(tab==='rs') renderRS();
@@ -2620,32 +2994,12 @@ function doDelRec(){
   _delPend={tab:null,id:null};
 }
 
-/* _renderRTActivePanel: renderiza SOLO el panel activo (orig o tienda) sin tocar la barra */
-function _renderRTActivePanel(){
-  const data=R.rt;
-  if(_rtActiveTienda==='orig'){
-    renderRTOrigs(data.filter(r=>r._orig&&!r._copy));
-  } else {
-    const recs = data.filter(r=>r._copy&&r.tienda===_rtActiveTienda);
-    renderRTTienda(_rtActiveTienda, recs);
-  }
-}
-
 // ─────────────────────────────────────────────
 // CONSULTAR
 // ─────────────────────────────────────────────
 const TLAB={rt:'🏪 Revisión en Tienda',dg:'📦 Devolución General',rs:'📅 Revisión Siguiente Semana'};
 const TCLS={rt:'trt',dg:'tdg',rs:'trs'};
 
-
-function delWkPwd(idx){
-  requirePwd('🗑️ Eliminar Semana', `¿Eliminar "${WK[idx]?.nom}"? Esta acción no se puede deshacer.`, ()=>{
-    WK.splice(idx,1);
-    saveWK();
-    renderConsWeeks();
-    showT('🗑️ Semana eliminada');
-  });
-}
 function renderConsWeeks(){
   const grid=document.getElementById('cgrid');
   document.getElementById('cdetail').style.display='none';
@@ -2659,23 +3013,29 @@ function renderConsWeeks(){
   grid.innerHTML=wks.map(w=>{
     const ri=WK.indexOf(w);
     const roTag=w.readonly?`<span style="background:#f3e8ff;color:#5b21b6;border-radius:4px;padding:1px 6px;font-size:.65rem;font-weight:700;margin-left:5px;">🔒 Solo lectura</span>`:'';
-    return`<div class="cc" id="cc-${ri}" onclick="openWkC(${ri})" style="position:relative;">
-      <div class="cn"><span class="${TCLS[w.tab]||''}">${TLAB[w.tab]||w.tab}</span>${esc(w.nom)}${roTag}</div>
-      <div class="cm2">${w.fecha||'—'}</div>
-      <span class="ck">${w.records?.length||0} registros</span>
-      <button class="btn bd sm" style="position:absolute;top:8px;right:8px;padding:3px 8px;font-size:.68rem;z-index:2;"
-        onclick="event.stopPropagation();delWkPwd(${ri})" title="Eliminar semana guardada">🗑️</button>
+    return`<div class="cc" id="cc-${ri}" style="position:relative;">
+      <div onclick="openWkC(${ri})" style="cursor:pointer;">
+        <div class="cn"><span class="${TCLS[w.tab]||''}">${TLAB[w.tab]||w.tab}</span>${esc(w.nom)}${roTag}</div>
+        <div class="cm2">${w.fecha||'—'}</div>
+        <span class="ck">${w.records?.length||0} registros</span>
+      </div>
+      <button onclick="event.stopPropagation();consDeleteFolder(${ri})" title="Eliminar carpeta" style="position:absolute;top:8px;right:8px;background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;border-radius:6px;width:26px;height:26px;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;">🗑️</button>
     </div>`;
   }).join('');
 }
-let _consReadonly=false;
+let _consReadonly=true;  // siempre inicia en solo lectura
 function openWkC(idx){
   document.querySelectorAll('.cc').forEach(c=>c.classList.remove('aw'));
   const card=document.getElementById('cc-'+idx);if(card)card.classList.add('aw');
   cWkI=idx;cRecs=JSON.parse(JSON.stringify(WK[idx].records||[]));
-  _consReadonly=!!WK[idx].readonly;
+  _consReadonly=true;  // siempre inicia bloqueado — usar botón 🔑 para editar
   document.getElementById('cdetail').style.display='block';
-  const roLabel=_consReadonly?` <span style="background:#f3e8ff;color:#5b21b6;border-radius:5px;padding:2px 8px;font-size:.72rem;font-weight:700;">🔒 Solo Lectura</span>`:'';
+  // Resetear botones edit/lock al abrir una semana
+  const editBtn=document.getElementById('cons-edit-btn');
+  const lockBtn=document.getElementById('cons-lock-btn');
+  if(editBtn) editBtn.style.display='inline-flex';
+  if(lockBtn) lockBtn.style.display='none';
+  const roLabel=` <span style="background:#f3e8ff;color:#5b21b6;border-radius:5px;padding:2px 8px;font-size:.72rem;font-weight:700;">🔒 Solo Lectura</span>`;
   document.getElementById('cdtitle').innerHTML=`📊 ${TLAB[WK[idx].tab]||''} — ${esc(WK[idx].nom)}${roLabel}`;
   document.getElementById('cfs').value='';
   document.getElementById('cft').value='';
@@ -2690,7 +3050,115 @@ function openWkC(idx){
   }
   renderConsT(cRecs);
 }
-function closeCons(){document.getElementById('cdetail').style.display='none';}
+function closeCons(){
+  document.getElementById('cdetail').style.display='none';
+  // Reset edit state when closing
+  _consReadonly=true;
+  const editBtn=document.getElementById('cons-edit-btn');
+  const lockBtn=document.getElementById('cons-lock-btn');
+  if(editBtn) editBtn.style.display='inline-flex';
+  if(lockBtn) lockBtn.style.display='none';
+}
+
+function consRequestEdit(){
+  // Show password modal
+  document.getElementById('cons-clave-inp').value='';
+  document.getElementById('cons-clave-err').textContent='';
+  document.getElementById('ov-cons-clave').classList.add('show');
+  setTimeout(()=>document.getElementById('cons-clave-inp').focus(), 150);
+}
+
+function consCheckClave(){
+  const val = document.getElementById('cons-clave-inp').value;
+  if(val === '1234'){
+    cOv('ov-cons-clave');
+    document.getElementById('cons-clave-inp').value='';
+    document.getElementById('cons-clave-err').textContent='';
+    // Unlock edit mode
+    _consReadonly=false;
+    const editBtn=document.getElementById('cons-edit-btn');
+    const lockBtn=document.getElementById('cons-lock-btn');
+    if(editBtn) editBtn.style.display='none';
+    if(lockBtn) lockBtn.style.display='inline-flex';
+    // Update title label
+    if(cWkI!==null){
+      document.getElementById('cdtitle').innerHTML=
+        document.getElementById('cdtitle').innerHTML
+          .replace(/<span[^>]*>🔒[^<]*<\/span>/g,'') +
+        ' <span style="background:#fef3c7;color:#92400e;border-radius:5px;padding:2px 8px;font-size:.72rem;font-weight:700;">✏️ Modo Edición</span>';
+    }
+    // Re-render with edit controls visible
+    const editBtns=document.getElementById('cons-edit-btns');
+    if(editBtns) editBtns.style.display='flex';
+    filterCons();
+    showT('✅ Modo edición activado');
+  } else {
+    document.getElementById('cons-clave-err').textContent='❌ Clave incorrecta. Inténtalo de nuevo.';
+    document.getElementById('cons-clave-inp').value='';
+    document.getElementById('cons-clave-inp').focus();
+  }
+}
+
+let _folderToDelete = null;
+function consDeleteFolder(idx){
+  _folderToDelete = idx;
+  const w = WK[idx];
+  if(!w) return;
+  document.getElementById('cons-del-folder-name').textContent = `"${w.nom}" (${w.records?.length||0} registros)`;
+  document.getElementById('cons-folder-clave-inp').value='';
+  document.getElementById('cons-folder-clave-err').textContent='';
+  document.getElementById('ov-cons-del-folder').classList.add('show');
+  setTimeout(()=>document.getElementById('cons-folder-clave-inp').focus(), 150);
+}
+
+function consCheckFolderClave(){
+  const val = document.getElementById('cons-folder-clave-inp').value;
+  if(val === '1234'){
+    cOv('ov-cons-del-folder');
+    if(_folderToDelete === null) return;
+    const idx = _folderToDelete;
+    const nom = WK[idx]?.nom || '';
+    // Remove from Firebase using the week id
+    const wkId = WK[idx]?.id;
+    WK.splice(idx, 1);
+    sW();
+    // Also remove from Firebase directly by id
+    if(wkId) REF_WK.child(wkId).remove().catch(()=>{});
+    _folderToDelete = null;
+    // Close detail if it was open for this week
+    if(cWkI === idx){
+      document.getElementById('cdetail').style.display='none';
+      cWkI = null;
+    } else if(cWkI > idx){
+      cWkI--;
+    }
+    renderConsWeeks();
+    showT('🗑️ Carpeta "' + nom + '" eliminada');
+  } else {
+    document.getElementById('cons-folder-clave-err').textContent='❌ Clave incorrecta. Inténtalo de nuevo.';
+    document.getElementById('cons-folder-clave-inp').value='';
+    document.getElementById('cons-folder-clave-inp').focus();
+  }
+}
+
+function consLock(){
+  _consReadonly=true;
+  const editBtn=document.getElementById('cons-edit-btn');
+  const lockBtn=document.getElementById('cons-lock-btn');
+  if(editBtn) editBtn.style.display='inline-flex';
+  if(lockBtn) lockBtn.style.display='none';
+  // Update title label
+  if(cWkI!==null){
+    document.getElementById('cdtitle').innerHTML=
+      document.getElementById('cdtitle').innerHTML
+        .replace(/<span[^>]*>✏️[^<]*<\/span>/g,'') +
+      ' <span style="background:#f3e8ff;color:#5b21b6;border-radius:5px;padding:2px 8px;font-size:.72rem;font-weight:700;">🔒 Solo Lectura</span>';
+  }
+  const editBtns=document.getElementById('cons-edit-btns');
+  if(editBtns) editBtns.style.display='none';
+  filterCons();
+  showT('🔒 Modo solo lectura');
+}
 function filterCons(){
   const s=document.getElementById('cfs').value.toLowerCase();
   const t=document.getElementById('cft').value;
@@ -2732,88 +3200,31 @@ function updConsSelCount(){
   if(allChk) allChk.checked=total>0&&sel===total;
 }
 function consDelOne(recId){
-  requirePwd('🗑️ Eliminar Registro','Ingrese la contraseña para eliminar este registro.',()=>{
-    if(cWkI===null)return;
-    WK[cWkI].records=WK[cWkI].records.filter(r=>String(r.id)!==String(recId));
-    sW();
-    cRecs=JSON.parse(JSON.stringify(WK[cWkI].records||[]));
-    filterCons();
-    showT('🗑️ Registro eliminado');
-    renderConsWeeks();
-    const card=document.getElementById('cc-'+cWkI);if(card)card.classList.add('aw');
-    document.getElementById('cdetail').style.display='block';
-  });
+  if(!confirm('¿Eliminar este registro de la semana guardada?'))return;
+  if(cWkI===null)return;
+  WK[cWkI].records=WK[cWkI].records.filter(r=>String(r.id)!==String(recId));
+  sW();
+  cRecs=JSON.parse(JSON.stringify(WK[cWkI].records||[]));
+  filterCons();
+  showT('🗑️ Registro eliminado');
+  // Update card count
+  renderConsWeeks();
+  const card=document.getElementById('cc-'+cWkI);if(card)card.classList.add('aw');
+  document.getElementById('cdetail').style.display='block';
 }
 function consDelSelected(){
   const ids=[...document.querySelectorAll('.cons-chk:checked')].map(c=>c.getAttribute('data-crid'));
   if(!ids.length){showT('⚠️ Sin registros seleccionados');return;}
-  requirePwd('🗑️ Eliminar Registros',`Ingrese la contraseña para eliminar ${ids.length} registro(s).`,()=>{
-    if(cWkI===null)return;
-    WK[cWkI].records=WK[cWkI].records.filter(r=>!ids.includes(String(r.id)));
-    sW();
-    cRecs=JSON.parse(JSON.stringify(WK[cWkI].records||[]));
-    filterCons();
-    showT(`🗑️ ${ids.length} registro(s) eliminado(s)`);
-    renderConsWeeks();
-    const card=document.getElementById('cc-'+cWkI);if(card)card.classList.add('aw');
-    document.getElementById('cdetail').style.display='block';
-  });
-}
-
-// ─────────────────────────────────────────────
-// CONSULTAR: Editar registro con contraseña
-// ─────────────────────────────────────────────
-function consEditRow(recId){
-  requirePwd('✏️ Editar Registro','Ingrese la contraseña para editar este registro.',()=>{
-    const rec=cRecs.find(r=>String(r.id)===String(recId));
-    if(!rec)return;
-    // Find row in DOM and replace cells with inputs
-    const row=document.getElementById('cons-row-'+recId);
-    if(!row)return;
-    const ean=rec.eans?.[0]||{ean:'',cantidad:'',pvp:''};
-    const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
-    row.innerHTML=`
-      <td></td>
-      <td style="font-weight:700;color:var(--rojo);">✏️</td>
-      <td><input class="ie" value="${esc(rec.semana||'')}" style="width:70px;" onchange="consFieldEdit('${recId}','semana',this.value)"></td>
-      <td><select class="ie-s" style="width:100px;" onchange="consFieldEdit('${recId}','tienda',this.value)">${storeSelOpts(rec.tienda)}</select></td>
-      <td><input class="ie" value="${esc(rec.dpto||'')}" style="width:52px;" onchange="consFieldEdit('${recId}','dpto',this.value)"></td>
-      <td><input class="ie" value="${esc(rec.codigo||'')}" style="width:70px;" onchange="consFieldEdit('${recId}','codigo',this.value)"></td>
-      <td><input class="ie" value="${esc(rec.proveedor||'')}" style="width:90px;" onchange="consFieldEdit('${recId}','proveedor',this.value)"></td>
-      <td><input class="ie" value="${esc(rec.ref||'')}" style="width:48px;" onchange="consFieldEdit('${recId}','ref',this.value)"></td>
-      <td><input class="ie" value="${esc(rec.semIngreso||'')}" style="width:52px;" onchange="consFieldEdit('${recId}','semIngreso',this.value)"></td>
-      <td><input class="ie" value="${esc(ean.ean||'')}" style="width:90px;" onchange="consEanEdit('${recId}',0,'ean',this.value)"></td>
-      <td><input class="ie" type="number" value="${esc(ean.cantidad||'')}" style="width:52px;" onchange="consEanEdit('${recId}',0,'cantidad',this.value)"></td>
-      <td><input class="ie" type="number" value="${esc(ean.pvp||'')}" step="0.01" style="width:62px;" onchange="consEanEdit('${recId}',0,'pvp',this.value)"></td>
-      <td style="font-weight:700;color:#3b0764;">${fTot(ean)}</td>
-      <td><textarea class="ie-t" style="width:100px;" onchange="consFieldEdit('${recId}','motivo',this.value)">${esc(rec.motivo||'')}</textarea></td>
-      <td><select class="ie-s" style="width:110px;" onchange="consFieldEdit('${recId}','decision',this.value)">${decSelOpts(rec.decision)}</select></td>
-      <td><textarea class="ie-t" style="width:100px;" onchange="consFieldEdit('${recId}','observaciones',this.value)">${esc(rec.observaciones||'')}</textarea></td>
-      <td></td>
-      <td style="white-space:nowrap;">
-        <button class="btn bp sm" onclick="consSaveEdit('${recId}')"><span class="ic">💾</span></button>
-      </td>`;
-    showT('✏️ Editando — haz cambios y pulsa 💾 para guardar');
-  });
-}
-function consFieldEdit(recId,field,val){
-  const rec=cRecs.find(r=>String(r.id)===String(recId));
-  if(rec) rec[field]=val;
-}
-function consEanEdit(recId,idx,field,val){
-  const rec=cRecs.find(r=>String(r.id)===String(recId));
-  if(rec&&rec.eans&&rec.eans[idx]) rec.eans[idx][field]=val;
-}
-function consSaveEdit(recId){
+  if(!confirm(`¿Eliminar ${ids.length} registro(s) seleccionado(s)?`))return;
   if(cWkI===null)return;
-  const rec=cRecs.find(r=>String(r.id)===String(recId));
-  if(!rec)return;
-  // Sync back to WK
-  const wi=WK[cWkI].records.findIndex(r=>String(r.id)===String(recId));
-  if(wi!==-1) WK[cWkI].records[wi]=JSON.parse(JSON.stringify(rec));
+  WK[cWkI].records=WK[cWkI].records.filter(r=>!ids.includes(String(r.id)));
   sW();
+  cRecs=JSON.parse(JSON.stringify(WK[cWkI].records||[]));
   filterCons();
-  showT('💾 Registro actualizado en Consultar');
+  showT(`🗑️ ${ids.length} registro(s) eliminado(s)`);
+  renderConsWeeks();
+  const card=document.getElementById('cc-'+cWkI);if(card)card.classList.add('aw');
+  document.getElementById('cdetail').style.display='block';
 }
 function renderConsT(data){
   const c=document.getElementById('cres');
@@ -2824,7 +3235,7 @@ function renderConsT(data){
     <th>#</th><th>Semana</th><th>Tienda</th><th>DPTO</th><th>Código</th><th>Proveedor</th>
     <th>REF</th><th>Sem.Ing.</th><th>EAN/SKU</th><th>Cant.</th><th>PVP</th><th>PVP Tot</th>
     <th>Motivo</th><th>Decisión</th><th>Observaciones</th><th>Foto</th>
-    ${ro?'':`<th>✏️/🗑️</th>`}
+    ${ro?'':`<th>🗑️</th>`}
   </tr></thead><tbody>`;
   let cs='',rn=0;
   sortR(data).forEach(rec=>{
@@ -2833,14 +3244,14 @@ function renderConsT(data){
       rn++;
       const rIdC=String(rec.id);
       const f2=rec.foto2?.length>0?('<div class="foto-strip">'+rec.foto2.map((src,fi)=>`<div class="foto-thumb${fi===0?' principal':''}" style="cursor:pointer;" onclick="openGalLB(${fi},'rec-${rIdC}')"><img src="${src}" style="height:${fi===0?70:55}px;" title="${fi===0?'Foto principal':'Ver galería'}"></div>`).join('')+'</div>'):'';
-      html+=`<tr data-crid="${esc(rec.id)}" id="cons-row-${esc(rec.id)}">
+      html+=`<tr data-crid="${esc(rec.id)}">
         ${ro?'':`<td style="text-align:center;"><input type="checkbox" class="cons-chk" data-crid="${esc(rec.id)}" onchange="updConsSelCount()"></td>`}
         <td>${rn}</td><td>${esc(rec.semana)}</td><td><span style="background:#fff0f0;color:var(--rojo);border:1px solid #ffcccc;border-radius:4px;padding:2px 6px;font-size:.67rem;font-weight:700;">${esc(rec.tienda)}</span></td>
         <td>${esc(rec.dpto)}</td><td>${esc(rec.codigo)}</td><td>${esc(rec.proveedor)}</td>
         <td>${esc(rec.ref)}</td><td>${esc(rec.semIngreso)}</td>
         <td>${esc(ean.ean)}</td><td>${esc(ean.cantidad)}</td><td>${fPVP(ean)}</td><td>${fTot(ean)}</td>
         <td>${esc(rec.motivo)}</td><td>${decBadge(rec.decision)}</td><td>${esc(rec.observaciones)}</td><td>${f2}</td>
-        ${ro?'':`<td style="white-space:nowrap;"><button class="btn bo sm" style="margin-bottom:3px;" onclick="consEditRow('${esc(rec.id)}')"><span class="ic">✏️</span></button><br><button class="btn bd sm" onclick="consDelOne('${esc(rec.id)}')"><span class="ic">🗑️</span></button></td>`}
+        ${ro?'':`<td><button class="btn bd sm" onclick="consDelOne('${esc(rec.id)}')"><span class="ic">🗑️</span></button></td>`}
       </tr>`;
     });
   });
@@ -2849,311 +3260,451 @@ function renderConsT(data){
 }
 
 // ─────────────────────────────────────────────
-// EXPORT EXCEL  (SheetJS + inline OOXML styles)
+// EXPORT EXCEL (sin fotos)
 // ─────────────────────────────────────────────
-
-async function exportXL(mode){
+function getExpData(mode){
+  if(mode==='rt'){return R.rt.filter(r=>r._orig&&!r._copy);}
+  if(mode==='dg'){const f=document.getElementById('dg-ft')?.value||'';return f?R.dg.filter(r=>r.tienda===f):R.dg;}
+  if(mode==='rs') return R.rs;
+  if(mode==='req') return R.req;
+  if(mode==='cons') return getCF();
+  return[];
+}
+function exportXL(mode){
   const data=getExpData(mode);
   if(!data.length){showT('⚠️ No hay datos');return;}
-  showT('⏳ Generando Excel…');
-  const isDG=mode==='dg';
-  try{
-    if(isDG){
-      const devs=data.filter(r=>r.decision==='Devolución'||!r.decision||r.decision==='');
-      const noDevs=data.filter(r=>r.decision==='No Devolución');
-      await xlBuild([[devs,'Devolución'],[noDevs,'No Devolución']],isDG,
-        `Deprati_dg_${xlDate()}.xlsx`);
-    }else{
-      await xlBuild([[data,'Novedades']],false,`Deprati_${mode}_${xlDate()}.xlsx`);
-    }
-    showT('📊 Excel exportado');
-  }catch(e){console.error(e);showT('❌ Error Excel: '+e.message);}
-}
+  const hdrBase=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso',
+    'EAN/SKU','Cantidad','PVP s/IVA','PVP Total','Motivo','Decisión','Observaciones','Fecha'];
+  const hdrDG=[...hdrBase,'Tabla Asignación','# Pedido Traslado'];
 
-async function exportXLTienda(){
-  const t=_rtActiveTienda;
-  if(t==='orig'){await exportXL('rt');return;}
-  const data=R.rt.filter(r=>r._copy&&r.tienda===t);
-  if(!data.length){showT('⚠️ Sin datos');return;}
-  showT('⏳ Generando Excel…');
-  try{
-    await xlBuild([[data,t.substring(0,31)]],false,
-      `Deprati_RT_${t.replace(/ /g,'_')}_${xlDate()}.xlsx`);
-    showT('📊 Excel exportado: '+t);
-  }catch(e){console.error(e);showT('❌ Error: '+e.message);}
-}
-
-function xlDate(){return new Date().toLocaleDateString('es-EC').replace(/\//g,'-');}
-
-// ── Core: build multi-sheet workbook and trigger download ──────────────────
-async function xlBuild(sheets,isDG,filename){
-  // Load JSZip lazily (only when exporting, ~100KB)
-  if(!window._JSZip){
-    await new Promise((ok,fail)=>{
-      const s=document.createElement('script');
-      s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-      s.onload=ok; s.onerror=fail; document.head.appendChild(s);
-    });
-    window._JSZip=JSZip;
+  function buildRows(recs, isDG){
+    const hdr=isDG?hdrDG:hdrBase;
+    const rows=[hdr];let rn=0;
+    sortR(recs).forEach(rec=>(rec.eans||[{ean:'',cantidad:'',pvp:''}]).forEach(ean=>{
+      rn++;const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
+      const base=[rn,rec.semana,rec.tienda,rec.dpto||'',rec.codigo||'',rec.proveedor||'',rec.ref||'',rec.semIngreso||'',
+        ean.ean||'',ean.cantidad||'',fPVP(ean).replace('$',''),tot?'$'+tot.toFixed(2):'',
+        rec.motivo||'',rec.decision||'',rec.observaciones||'',rec.fecha||''];
+      if(isDG) base.push(rec.tablaAsignacion||'', rec.pedidoTraslado||'');
+      rows.push(base);
+    }));
+    return rows;
   }
 
-  const HDR=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso',
-    'EAN/SKU','Cantidad','PVP s/IVA','PVP Total','Motivo','Decisión','Observaciones','Fecha',
-    ...(isDG?['Tabla Asignación','# Ped. Traslado']:[]),'Foto'];
-  const nC=HDR.length;
-  const FOTO_COL=nC-1; // 0-based index of foto column
+  const wb=XLSX.utils.book_new();
+  const colW=[4,14,18,10,12,22,10,10,16,8,10,10,28,18,28,16].map(w=>({wch:w}));
+  const colWDG=[...colW,18,18].map(w=>typeof w==='number'?{wch:w}:w);
 
-  // ── Collect rows + photo info per sheet ──
-  const sheetData=[];
-  for(const [recs,name] of sheets){
-    const rows=[];
-    const photos=[]; // {dataRowIdx 0-based in rows array after header, b64, ext}
-    let rn=0;
+  if(mode==='dg'){
+    const devs=data.filter(r=>r.decision==='Devolución'||!r.decision||r.decision==='');
+    const ws1=XLSX.utils.aoa_to_sheet(buildRows(devs,true));ws1['!cols']=colWDG;
+    XLSX.utils.book_append_sheet(wb,ws1,'Devolución');
+    const noDevs=data.filter(r=>r.decision==='No Devolución');
+    const ws2=XLSX.utils.aoa_to_sheet(buildRows(noDevs,true));ws2['!cols']=colWDG;
+    XLSX.utils.book_append_sheet(wb,ws2,'No Devolución');
+  } else {
+    const ws=XLSX.utils.aoa_to_sheet(buildRows(data,false));
+    ws['!cols']=colW;
+    XLSX.utils.book_append_sheet(wb,ws,'Novedades');
+  }
+  XLSX.writeFile(wb,`Deprati_${mode}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.xlsx`);
+  showT('📊 Excel exportado');
+}
+
+// ─────────────────────────────────────────────
+// EXPORT PDF (con fotos en columna)
+// ─────────────────────────────────────────────
+async function exportPDF(mode){
+  const{jsPDF}=window.jspdf;
+  const data=getExpData(mode);
+  if(!data.length){showT('⚠️ No hay datos');return;}
+  showT('⏳ Generando PDF...');
+  const IH=26;
+  const modeLabels={rt:'Revisión en Tienda',dg:'Devolución General',rs:'Revisión Siguiente Semana',req:'Requerimientos',cons:'Consulta'};
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a3'});
+  const pW=doc.internal.pageSize.getWidth(),pH=doc.internal.pageSize.getHeight();
+  const ML=7,usW=pW-ML-7;
+  // Column widths sum to 406mm (A3 landscape usable width)
+  const cW=[7,20,26,13,20,33,13,20,26,13,20,20,39,26,39,26,45];
+  const cN=['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso','EAN/SKU','Cantidad','PVP s/IVA','PVP Total','Motivo','Decisión','Observaciones','Fecha','Fotos'];
+  const HH=7,RH=IH+3;
+
+  function drawPageHeader(doc,y,pageNum,subtitle){
+    doc.setFontSize(13);doc.setTextColor(204,0,0);
+    doc.text('DEPRATI — REGISTRO DE NOVEDADES',ML,y+5);
+    doc.setFontSize(7.5);doc.setTextColor(80);
+    doc.text(`${modeLabels[mode]||mode.toUpperCase()}   |   ${new Date().toLocaleString('es-EC')}   |   Pág. ${pageNum}`,ML,y+11);
+    if(subtitle){doc.setFontSize(7);doc.setTextColor(100,100,100);doc.text(subtitle,pW-ML,y+11,{align:'right'});}
+    doc.setDrawColor(204,0,0);doc.setLineWidth(0.4);
+    doc.line(ML,y+13,pW-ML,y+13);
+    const hy=y+15;
+    let x=ML;
+    doc.setFillColor(204,0,0);doc.setTextColor(255,255,255);doc.setFontSize(5.2);doc.setFont(undefined,'bold');
+    cW.forEach((w,i)=>{
+      doc.rect(x,hy,w,HH,'F');
+      doc.text(cN[i],x+1,hy+4.6,{maxWidth:w-1.5});
+      x+=w;
+    });
+    doc.setFont(undefined,'normal');
+    return hy+HH;
+  }
+
+  function drawSectionBanner(doc,y,text,color){
+    if(y+8>pH-7){doc.addPage();return null;} // señal de que hubo salto
+    doc.setFillColor(...color);
+    doc.rect(ML,y,usW,7,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(7.5);doc.setFont(undefined,'bold');
+    doc.text(text,ML+3,y+5);
+    doc.setFont(undefined,'normal');
+    return y+8;
+  }
+
+  async function drawRows(doc,recs,startY,pageNum,color){
+    let y=startY,rn=0;
     for(const rec of sortR(recs)){
       for(const ean of (rec.eans||[{ean:'',cantidad:'',pvp:''}])){
         rn++;
-        const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
-        rows.push([rn,rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',
-          rec.proveedor||'',rec.ref||'',rec.semIngreso||'',
-          ean.ean||'',ean.cantidad||'',parseFloat(ean.pvp||0)||'',tot||'',
-          rec.motivo||'',rec.decision||'',rec.observaciones||'',rec.fecha||'',
-          ...(isDG?[rec.tablaAsig||'',rec.pedidoTraslado||'']:[]),'']);
-        if(rec.foto2?.length>0){
-          try{
-            const src=rec.foto2[0];
-            photos.push({
-              rowIdx:rows.length-1, // 0-based data row
-              b64:src.includes(',')? src.split(',')[1]:src,
-              ext:src.startsWith('data:image/png')?'png':'jpeg'
-            });
-          }catch(_){}
+        if(y+RH>pH-7){
+          doc.addPage();pageNum++;
+          y=drawPageHeader(doc,3,pageNum);
         }
+        const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
+        const cells=[String(rn),rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',rec.proveedor||'',rec.ref||'',
+          rec.semIngreso||'',ean.ean||'',String(ean.cantidad||''),fPVP(ean),tot?'$'+tot.toFixed(2):'',
+          (rec.motivo||'').substring(0,28),rec.decision||'',(rec.observaciones||'').substring(0,28),
+          (rec.fecha||'').substring(0,16),''];
+        if(rn%2===0)doc.setFillColor(255,245,245);else doc.setFillColor(255,255,255);
+        doc.setDrawColor(218,218,218);doc.setLineWidth(0.2);doc.rect(ML,y,usW,RH,'FD');
+        doc.setTextColor(40);doc.setFontSize(14);doc.setFont(undefined,'normal');
+        let x=ML;cells.forEach((t,i)=>{doc.text(String(t),x+1,y+7,{maxWidth:cW[i]-1.4});x+=cW[i];});
+        // Draw all photos side by side in last column
+        if(rec.foto2?.length>0){
+          const fotoX=ML+cW.slice(0,-1).reduce((a,b)=>a+b,0);
+          const fotoColW=cW[cW.length-1];
+          let fx=fotoX+1;
+          for(const fsrc of rec.foto2){
+            try{
+              const j=await toJ(fsrc,1200);
+              if(j){
+                const di=await getDim(j);
+                const iW=Math.min(Math.round((IH-2)*(di.w/di.h)),fotoColW-2);
+                if(fx+iW<=fotoX+fotoColW){
+                  doc.addImage(j,'JPEG',fx,y+1,iW,IH-2);
+                  fx+=iW+1;
+                }
+              }
+            }catch(e){}
+          }
+        }
+        y+=RH;
       }
     }
-    sheetData.push({name,rows,photos});
+    return{y,pageNum};
   }
 
-  // ── Build base xlsx with SheetJS ──
-  const wb=XLSX.utils.book_new();
-  for(const {name,rows} of sheetData){
-    const ws=XLSX.utils.aoa_to_sheet([HDR,...rows]);
-    // col widths
-    const cw=HDR.map((h,ci)=>{
-      let w=h.length+2;
-      rows.forEach(r=>{const l=String(r[ci]??'').length; if(l+2>w)w=Math.min(l+2,52);});
-      return {wch: ci===FOTO_COL?18:w};
-    });
-    ws['!cols']=cw;
-    // row heights: header=22, foto rows=85pt (≈3cm), rest=15
-    const photoSet=new Set(sheetData.find(s=>s.name===name)?.photos.map(p=>p.rowIdx));
-    ws['!rows']=[{hpt:22},...rows.map((_,i)=>({hpt:photoSet.has(i)?85:15}))];
-    ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:0,c:nC-1}})};
-    XLSX.utils.book_append_sheet(wb,ws,name);
-  }
+  let pageNum=1;
+  let y=drawPageHeader(doc,3,pageNum);
 
-  // Write to ArrayBuffer
-  const raw=new Uint8Array(XLSX.write(wb,{bookType:'xlsx',type:'array'}));
+  if(mode==='dg'){
+    const devs=data.filter(r=>r.decision==='Devolución'||!r.decision||r.decision==='');
+    const noDevs=data.filter(r=>r.decision==='No Devolución');
 
-  // ── Patch xlsx ZIP: inject styles + drawings ──
-  const zip=await window._JSZip.loadAsync(raw);
-
-  // 1. Replace styles.xml
-  zip.file('xl/styles.xml', xlStylesXML());
-
-  // 2. Per-sheet: patch sheetViews + cell styles + add images
-  for(let si=0;si<sheetData.length;si++){
-    const {rows,photos}=sheetData[si];
-    const photoRows=new Set(photos.map(p=>p.rowIdx));
-    const fname=`xl/worksheets/sheet${si+1}.xml`;
-    let sx=await zip.file(fname)?.async('string');
-    if(!sx) continue;
-
-    // a) Disable gridlines
-    if(sx.includes('<sheetView ')){
-      sx=sx.replace(/<sheetView /g,'<sheetView showGridLines="0" ');
-    } else {
-      sx=sx.replace('<sheetData>',
-        '<sheetViews><sheetView showGridLines="0" workbookViewId="0"/></sheetViews><sheetData>');
+    if(devs.length){
+      const ny=drawSectionBanner(doc,y,`DEVOLUCIONES (${devs.length} registros)`,[204,0,0]);
+      if(ny){y=ny;}
+      const res=await drawRows(doc,devs,y,pageNum,[255,245,245]);
+      y=res.y;pageNum=res.pageNum;
     }
-
-    // b) Apply cell styles via regex on each <row r="N">
-    sx=sx.replace(/<row r="(\d+)"([^>]*)>([\s\S]*?)<\/row>/g,(m,rn,attrs,cells)=>{
-      const rowN=parseInt(rn);
-      const si2=rowN===1?1:0; // 1=header style, 0=data style
-      const styledCells=cells.replace(/<c r="([^"]+)"([^\/> ]*)((?:\s[^>]*)?)(\/?>)/g,
-        (cm,ref,pre,rest,close)=>{
-          const noS=pre.replace(/\s*s="\d+"/,'')+rest.replace(/\s*s="\d+"/,'');
-          return `<c r="${ref}"${noS} s="${si2}"${close}`;
-        });
-      const ht=rowN===1?22:(photoRows.has(rowN-2)?85:15); // rowN-2: row1=header,row2=data[0]
-      const newAttrs=attrs.replace(/\s*ht="[^"]*"/,'').replace(/\s*customHeight="[^"]*"/,'')
-        +` ht="${ht}" customHeight="1"`;
-      return `<row r="${rn}"${newAttrs}>${styledCells}</row>`;
-    });
-
-    zip.file(fname,sx);
-
-    // c) Add drawings for photos
-    if(photos.length>0){
-      await xlAddDrawings(zip,si+1,photos,FOTO_COL,fname);
+    if(noDevs.length){
+      y+=4;
+      if(y+8>pH-7){doc.addPage();pageNum++;y=drawPageHeader(doc,3,pageNum);}
+      const ny=drawSectionBanner(doc,y,`✅ NO DEVOLUCIONES (${noDevs.length} registros)`,[21,128,61]);
+      if(ny){y=ny;}
+      await drawRows(doc,noDevs,y,pageNum,[240,255,240]);
+    }
+  } else {
+    let rn=0;
+    for(const rec of sortR(data)){
+      for(const ean of (rec.eans||[{ean:'',cantidad:'',pvp:''}])){
+        rn++;
+        if(y+RH>pH-7){doc.addPage();pageNum++;y=drawPageHeader(doc,3,pageNum);}
+        const tot=(parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
+        const cells=[String(rn),rec.semana||'',rec.tienda||'',rec.dpto||'',rec.codigo||'',rec.proveedor||'',rec.ref||'',
+          rec.semIngreso||'',ean.ean||'',String(ean.cantidad||''),fPVP(ean),tot?'$'+tot.toFixed(2):'',
+          (rec.motivo||'').substring(0,28),rec.decision||'',(rec.observaciones||'').substring(0,28),
+          (rec.fecha||'').substring(0,16),''];
+        if(rn%2===0)doc.setFillColor(255,245,245);else doc.setFillColor(255,255,255);
+        doc.setDrawColor(218,218,218);doc.setLineWidth(0.2);doc.rect(ML,y,usW,RH,'FD');
+        doc.setTextColor(40);doc.setFontSize(14);doc.setFont(undefined,'normal');
+        let x=ML;cells.forEach((t,i)=>{doc.text(String(t),x+1,y+7,{maxWidth:cW[i]-1.4});x+=cW[i];});
+        if(rec.foto2?.length>0){
+          const fX3=ML+cW.slice(0,-1).reduce((a,b)=>a+b,0);
+          let fx3=fX3+1;
+          for(const fsrc of rec.foto2){
+            try{const j=await toJ(fsrc,1200);
+              if(j){const di=await getDim(j);const iW=Math.min(Math.round((IH-2)*(di.w/di.h)),cW[cW.length-1]-2);
+                if(fx3+iW<=fX3+cW[cW.length-1]){doc.addImage(j,'JPEG',fx3,y+1,iW,IH-2);fx3+=iW+1;}}
+            }catch(e){}
+          }
+        }
+        y+=RH;
+      }
     }
   }
+  doc.save(`Deprati_${mode}_${new Date().toLocaleDateString('es-EC').replace(/\//g,'-')}.pdf`);
+  showT('📄 PDF exportado');
+}
+function toJ(d,maxPx){return new Promise(r=>{const i=new Image();i.onload=()=>{
+  // Keep full resolution up to maxPx on longest side to avoid blurriness
+  const mp=maxPx||1200;
+  const scale=Math.min(1,mp/Math.max(i.width,i.height));
+  const cv=document.createElement('canvas');
+  cv.width=Math.round(i.width*scale);cv.height=Math.round(i.height*scale);
+  cv.getContext('2d').drawImage(i,0,0,cv.width,cv.height);
+  r(cv.toDataURL('image/jpeg',.92));};i.onerror=()=>r(null);i.src=d;});}
+function getDim(d){return new Promise(r=>{const i=new Image();i.onload=()=>r({w:i.width,h:i.height});i.onerror=()=>r({w:1,h:1});i.src=d;});}
 
-  const buf=await zip.generateAsync({type:'arraybuffer',compression:'DEFLATE',compressionOptions:{level:5}});
-  xlDownload(buf,filename);
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function cOv(id){document.getElementById(id).classList.remove('show');}
+function openLB(src){document.getElementById('lxi').src=src;document.getElementById('lx').classList.add('show');}
+function closeLB(){document.getElementById('lx').classList.remove('show');}
+function showT(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',3400);}
+
+// ─────────────────────────────────────────────
+// BARCODE SCANNER
+// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// BARCODE SCANNER — ZXing (EAN-13, Code128, Code39)
+// ─────────────────────────────────────────────
+let _scanTab='', _zxingReader=null, _zxingActive=false;
+
+function _loadZXing(cb){
+  if(window.ZXing){ cb(); return; }
+  const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js';
+  s.onload=cb;
+  s.onerror=()=>{
+    // fallback CDN alternativo
+    const s2=document.createElement('script');
+    s2.src='https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js';
+    s2.onload=cb;
+    s2.onerror=()=>{ cb(false); };
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s);
 }
 
-function xlStylesXML(){
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <fonts count="2">
-    <font><sz val="9"/><color rgb="FF000000"/><name val="Calibri"/></font>
-    <font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
-  </fonts>
-  <fills count="4">
-    <fill><patternFill patternType="none"/></fill>
-    <fill><patternFill patternType="gray125"/></fill>
-    <fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/></patternFill></fill>
-    <fill><patternFill patternType="solid"><fgColor rgb="FF1F3864"/></patternFill></fill>
-  </fills>
-  <borders count="2">
-    <border><left/><right/><top/><bottom/><diagonal/></border>
-    <border>
-      <left style="thin"><color rgb="FF888888"/></left>
-      <right style="thin"><color rgb="FF888888"/></right>
-      <top style="thin"><color rgb="FF888888"/></top>
-      <bottom style="thin"><color rgb="FF888888"/></bottom>
-      <diagonal/>
-    </border>
-  </borders>
-  <cellStyleXfs count="1">
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
-  </cellStyleXfs>
-  <cellXfs count="2">
-    <xf numFmtId="0" fontId="0" fillId="2" borderId="1" xfId="0"
-        applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center" wrapText="0"/>
-    </xf>
-    <xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0"
-        applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center" wrapText="1"/>
-    </xf>
-  </cellXfs>
-</styleSheet>`;
-}
+function openBarcodeScanner(tab){
+  _scanTab=tab;
+  const overlay=document.getElementById('barcode-overlay');
+  overlay.style.display='flex';
+  const status=document.getElementById('barcode-status');
+  const manualWrap=document.getElementById('barcode-manual-wrap');
+  if(manualWrap) manualWrap.style.display='none';
+  status.textContent='⏳ Cargando escáner...';
 
-async function xlAddDrawings(zip,sheetNum,photos,fotoCol,sheetFile){
-  const mediaEntries=[]; // {rId, filename, b64, ext}
-  let drawXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
-  xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
-  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`;
-  let drawRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`;
+  _loadZXing(ok=>{
+    if(ok===false){
+      status.textContent='⚠️ Escáner no disponible. Usa entrada manual.';
+      if(manualWrap) manualWrap.style.display='flex';
+      return;
+    }
+    try{
+      // MultiFormatReader soporta EAN-13, Code128, Code39 y muchos más
+      const hints=new Map();
+      const formats=[
+        ZXing.BarcodeFormat.EAN_13,
+        ZXing.BarcodeFormat.EAN_8,
+        ZXing.BarcodeFormat.CODE_128,
+        ZXing.BarcodeFormat.CODE_39,
+        ZXing.BarcodeFormat.UPC_A,
+        ZXing.BarcodeFormat.UPC_E
+      ];
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
-  photos.forEach((p,i)=>{
-    const rId=`rId${i+1}`;
-    const imgName=`img_s${sheetNum}_${i+1}.${p.ext==='png'?'png':'jpeg'}`;
-    const mime=p.ext==='png'?'image/png':'image/jpeg';
-    // dataRow in sheet (0-based): +1 for header row
-    const excelRow=p.rowIdx+1; // 0-based xlsx row (header=0, first data=1)
-    // Image size: 3cm tall ≈ 1080000 EMU, width proportional (assume 4:3)
-    const cy=1080000, cx=1440000;
+      _zxingReader=new ZXing.BrowserMultiFormatReader(hints);
+      _zxingActive=true;
+      status.textContent='🔍 Buscando código... (apunta y mantén estable)';
 
-    drawXml+=`
-  <xdr:oneCellAnchor>
-    <xdr:from>
-      <xdr:col>${fotoCol}</xdr:col><xdr:colOff>45720</xdr:colOff>
-      <xdr:row>${excelRow}</xdr:row><xdr:rowOff>45720</xdr:rowOff>
-    </xdr:from>
-    <xdr:ext cx="${cx}" cy="${cy}"/>
-    <xdr:pic>
-      <xdr:nvPicPr>
-        <xdr:cNvPr id="${100+i}" name="Img${sheetNum}_${i+1}"/>
-        <xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr>
-      </xdr:nvPicPr>
-      <xdr:blipFill>
-        <a:blip r:embed="${rId}"/>
-        <a:stretch><a:fillRect/></a:stretch>
-      </xdr:blipFill>
-      <xdr:spPr>
-        <a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>
-        <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
-      </xdr:spPr>
-    </xdr:pic>
-    <xdr:clientData/>
-  </xdr:oneCellAnchor>`;
-
-    drawRels+=`\n  <Relationship Id="${rId}"
-    Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
-    Target="../media/${imgName}"/>`;
-
-    mediaEntries.push({rId,imgName,b64:p.b64,ext:p.ext});
+      const video=document.getElementById('barcode-video');
+      _zxingReader.decodeFromConstraints(
+        { video:{ facingMode:'environment', width:{ideal:1280}, height:{ideal:720} } },
+        video,
+        (result, err)=>{
+          if(result){
+            const code=(result.getText()||'').trim();
+            if(code && code.length>=4){
+              closeBarcodeScanner();
+              pasteBarcode(tab, code);
+            }
+          }
+          // err puede ser NotFoundException (normal entre frames) — ignorar
+        }
+      ).catch(e=>{
+        status.textContent='⚠️ Error de cámara. Usa entrada manual.';
+        if(manualWrap) manualWrap.style.display='flex';
+      });
+    }catch(e){
+      status.textContent='⚠️ Error al iniciar escáner. Usa entrada manual.';
+      if(manualWrap) manualWrap.style.display='flex';
+    }
   });
+}
 
-  drawXml+=`\n</xdr:wsDr>`;
-  drawRels+=`\n</Relationships>`;
+function toggleManualBarcode(){
+  const mw=document.getElementById('barcode-manual-wrap');
+  if(!mw) return;
+  mw.style.display=mw.style.display==='none'?'flex':'none';
+  if(mw.style.display==='flex') document.getElementById('barcode-manual-inp')?.focus();
+}
 
-  // Write media files
-  mediaEntries.forEach(m=>{
-    const bin=xlB64toU8(m.b64);
-    zip.file(`xl/media/${m.imgName}`,bin);
-  });
+function confirmManualBarcode(){
+  const inp=document.getElementById('barcode-manual-inp');
+  const code=(inp?.value||'').trim();
+  if(!code){ showT('⚠️ Ingresa un código'); return; }
+  closeBarcodeScanner();
+  pasteBarcode(_scanTab, code);
+  if(inp) inp.value='';
+}
 
-  // Write drawing files
-  const drawFile=`xl/drawings/drawing${sheetNum}.xml`;
-  const drawRelsFile=`xl/drawings/_rels/drawing${sheetNum}.xml.rels`;
-  zip.file(drawFile,drawXml);
-  zip.file(drawRelsFile,drawRels);
-
-  // Add drawing rel to sheet rels
-  const sheetRelsFile=`xl/worksheets/_rels/sheet${sheetNum}.xml.rels`;
-  const existingRels=await zip.file(sheetRelsFile)?.async('string')||
-    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`;
-  const newRels=existingRels.replace('</Relationships>',
-    `  <Relationship Id="rIdDrw1"
-    Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing"
-    Target="../drawings/drawing${sheetNum}.xml"/>\n</Relationships>`);
-  zip.file(sheetRelsFile,newRels);
-
-  // Add <drawing> tag to sheet XML
-  let sx=await zip.file(sheetFile).async('string');
-  if(!sx.includes('<drawing ')){
-    // Ensure r: namespace is declared
-    if(!sx.includes('xmlns:r=')){
-      sx=sx.replace('<worksheet ',
-        '<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ');
+function closeBarcodeScanner(){
+  if(_zxingActive && _zxingReader){
+    try{ _zxingReader.reset(); }catch(e){}
+    _zxingActive=false;
+  }
+  const video=document.getElementById('barcode-video');
+  if(video){
+    if(video.srcObject){
+      video.srcObject.getTracks().forEach(t=>t.stop());
+      video.srcObject=null;
     }
-    sx=sx.replace('</worksheet>',`<drawing r:id="rIdDrw1"/></worksheet>`);
-    zip.file(sheetFile,sx);
   }
-
-  // Register drawing in [Content_Types].xml
-  let ct=await zip.file('[Content_Types].xml')?.async('string')||'';
-  if(!ct.includes(`drawing${sheetNum}.xml`)){
-    ct=ct.replace('</Types>',
-      `  <Override PartName="/xl/drawings/drawing${sheetNum}.xml"\n    ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>\n</Types>`);
-    zip.file('[Content_Types].xml',ct);
-  }
+  const overlay=document.getElementById('barcode-overlay');
+  if(overlay) overlay.style.display='none';
+  const mw=document.getElementById('barcode-manual-wrap');
+  if(mw) mw.style.display='none';
 }
 
-function xlB64toU8(b64){
-  const s=atob(b64),a=new Uint8Array(s.length);
-  for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);
-  return a;
-}
-
-function xlDownload(buf,name){
-  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=name;
-  document.body.appendChild(a);a.click();
-  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1500);
+function pasteBarcode(tab,code){
+  // Buscar el primer campo EAN vacío; si todos tienen valor, usar el último
+  const inputs=Array.from(document.querySelectorAll('#'+tab+'-el .ei'));
+  const empty=inputs.find(i=>!i.value.trim());
+  const target=empty||inputs[inputs.length-1];
+  if(target){
+    target.value=code;
+    target.dispatchEvent(new Event('input'));
+    target.focus();
+    target.style.background='#d1fae5';
+    setTimeout(()=>target.style.background='',1200);
+  }
+  showT('✅ Código escaneado: '+code);
 }
 
 // ─────────────────────────────────────────────
-// FIREBASE
+// MOBILE BOTTOM NAV
 // ─────────────────────────────────────────────
+let _mbnSubmenuOpen = false;
+let _mbnActiveSub = 'rt';
+
+function toggleMbnSubmenu(btn){
+  if(_mbnSubmenuOpen){
+    closeMbnSubmenu();
+  } else {
+    openMbnSubmenu();
+  }
+}
+
+function openMbnSubmenu(){
+  _mbnSubmenuOpen = true;
+  document.getElementById('mbn-submenu').classList.add('show');
+  document.getElementById('mbn-overlay').classList.add('show');
+  document.getElementById('mbn-ingr').classList.add('act');
+}
+
+function closeMbnSubmenu(){
+  _mbnSubmenuOpen = false;
+  document.getElementById('mbn-submenu').classList.remove('show');
+  document.getElementById('mbn-overlay').classList.remove('show');
+}
+
+function mbnGoSub(tab, btn){
+  closeMbnSubmenu();
+  _mbnActiveSub = tab;
+
+  // Marca visualmente en el submenu
+  ['rt','dg','rs','req'].forEach(t=>{
+    const b=document.getElementById('msub-'+t);
+    const chk=document.getElementById('msub-chk-'+t);
+    if(b) b.classList.toggle('act', t===tab);
+    if(chk) chk.style.display = t===tab ? 'inline' : 'none';
+  });
+
+  // Activa sección Ingresar en nav principal
+  const mainBtn=document.querySelector('.mn button:first-child');
+  if(mainBtn){
+    document.querySelectorAll('.mn button').forEach(b=>b.classList.remove('act'));
+    mainBtn.classList.add('act');
+    document.getElementById('mp-ingr').style.display='block';
+    document.getElementById('mp-cons').style.display='none';
+    document.getElementById('sn').style.display='none';
+  }
+
+  // Activa la subpestaña
+  switchSub(tab, null);
+
+  // Mantiene "Ingresar" activo en bottom nav
+  document.getElementById('mbn-ingr').classList.add('act');
+  document.getElementById('mbn-cons').classList.remove('act');
+}
+
+function mbnCons(btn){
+  closeMbnSubmenu();
+  document.querySelectorAll('.mobile-bottom-nav button').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+  const mainBtn=document.querySelector('.mn button:last-child');
+  if(mainBtn) switchMain('cons', mainBtn);
+}
+
+// ─────────────────────────────────────────────
+// PWA — SERVICE WORKER
+// ─────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/sw.js')
+      .then(()=>console.log('✅ SW registrado'))
+      .catch(e=>console.log('SW error:',e));
+  });
+}
+
+// Prompt de instalación PWA
+let _deferredPrompt=null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  _deferredPrompt=e;
+  // Mostrar banner de instalación
+  showInstallBanner();
+});
+function showInstallBanner(){
+  if(document.getElementById('install-banner')) return;
+  const banner=document.createElement('div');
+  banner.id='install-banner';
+  banner.style.cssText='position:fixed;bottom:70px;left:12px;right:12px;background:#cc0000;color:#fff;border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;z-index:500;box-shadow:0 4px 20px rgba(0,0,0,.25);font-family:Nunito,sans-serif;font-size:.85rem;font-weight:700;';
+  banner.innerHTML=`<span>📲 Instalar app Deprati</span><div style="display:flex;gap:8px;"><button onclick="installPWA()" style="background:#fff;color:#cc0000;border:none;border-radius:7px;padding:6px 14px;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif;">Instalar</button><button onclick="this.closest('#install-banner').remove()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;">✕</button></div>`;
+  document.body.appendChild(banner);
+}
+function installPWA(){
+  if(_deferredPrompt){
+    _deferredPrompt.prompt();
+    _deferredPrompt.userChoice.then(()=>{_deferredPrompt=null;document.getElementById('install-banner')?.remove();});
+  }
+}
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('install-banner')?.remove();
+  showT('✅ App instalada correctamente');
+});
 const FB_CFG={databaseURL:"https://deprati-novedades-default-rtdb.firebaseio.com/"};
 firebase.initializeApp(FB_CFG);
 const db=firebase.database();
@@ -3168,36 +3719,177 @@ function fbSetStatus(state,msg,last){
 }
 function toFbObj(arr){const o={};arr.forEach(r=>{if(r&&r.id)o[r.id]=r;});return o;}
 
+// ─── Listeners independientes por sección ───────────────────────────────────
+// Cada sección (rt, dg, rs, req) tiene su propio listener en Firebase.
+// Esto garantiza que cuando cualquier dispositivo escribe en records/dg,
+// TODOS los demás dispositivos reciben la actualización inmediatamente,
+// sin interferencia de los otros nodos.
+// ────────────────────────────────────────────────────────────────────────────
+let _fbListenersActive = false;
+
 function loadStorage(){
   fbSetStatus('wait','⏳ Cargando...');
   try{CUSTOM_STORES=JSON.parse(localStorage.getItem('dcs')||'[]');}catch(e){CUSTOM_STORES=[];}
   CUSTOM_STORES.forEach(s=>{if(!STORES.includes(s))STORES.push(s);});
   renderCustomStoresList();
-  REF_R.once('value').then(snap=>{
-    const val=snap.val();
-    if(val){R.rt=val.rt?Object.values(val.rt):[];R.dg=val.dg?Object.values(val.dg):[];R.rs=val.rs?Object.values(val.rs):[];R.req=val.req?Object.values(val.req):[];}
-    else{R={rt:[],dg:[],rs:[],req:[]};}
-    renderRT();renderDG();renderRS();renderREQ();updateBell();
-    fbSetStatus('ok','✅ Conectado',new Date().toLocaleString('es-EC'));
+
+  if(!_fbListenersActive){
+    _fbListenersActive=true;
+
+    // Listener RT
+    REF_R.child('rt').on('value', snap=>{
+      R.rt = snap.val() ? Object.values(snap.val()) : [];
+      try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}
+      renderRT();
+      fbSetStatus('ok','✅ Sincronizado',new Date().toLocaleString('es-EC'));
+    }, ()=>{
+      try{const d=JSON.parse(localStorage.getItem('dr')||'{}');R.rt=d.rt||[];}catch(e){}
+      renderRT();
+      fbSetStatus('err','⚠️ Sin conexión','');
+    });
+
+    // Listener DG — sincroniza devoluciones entre dispositivos en tiempo real
+    let _dgFirstLoad = true;
+    let _dgPrevDecCount = 0;
+    REF_R.child('dg').on('value', snap=>{
+      R.dg = snap.val() ? Object.values(snap.val()) : [];
+      try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}
+      renderDG();
+      updateDGStatusBanner();
+      fbSetStatus('ok','✅ Sincronizado',new Date().toLocaleString('es-EC'));
+      // Notificar cambios remotos (excepto la carga inicial)
+      if(!_dgFirstLoad){
+        const decCount = R.dg.filter(r => r.decision && r.decision !== 'Revisar en Tiendas').length;
+        if(decCount !== _dgPrevDecCount){
+          const diff = decCount - _dgPrevDecCount;
+          showT('📡 ' + (diff > 0 ? '+' + diff + ' decisiones' : 'Datos') + ' actualizados desde otro dispositivo');
+        }
+        _dgPrevDecCount = decCount;
+      } else {
+        _dgPrevDecCount = R.dg.filter(r => r.decision && r.decision !== 'Revisar en Tiendas').length;
+        _dgFirstLoad = false;
+      }
+    }, ()=>{
+      try{const d=JSON.parse(localStorage.getItem('dr')||'{}');R.dg=d.dg||[];}catch(e){}
+      renderDG();
+    });
+
+    // Listener RS
+    REF_R.child('rs').on('value', snap=>{
+      R.rs = snap.val() ? Object.values(snap.val()) : [];
+      try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}
+      renderRS();
+    }, ()=>{
+      try{const d=JSON.parse(localStorage.getItem('dr')||'{}');R.rs=d.rs||[];}catch(e){}
+      renderRS();
+    });
+
+    // Listener REQ
+    REF_R.child('req').on('value', snap=>{
+      R.req = snap.val() ? Object.values(snap.val()) : [];
+      try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}
+      renderREQ(); updateBell();
+    }, ()=>{
+      try{const d=JSON.parse(localStorage.getItem('dr')||'{}');R.req=d.req||[];}catch(e){}
+      renderREQ(); updateBell();
+    });
+  }
+
+  // Pre-cargar DG desde Firebase al inicio para que esté disponible inmediatamente
+  REF_R.child('dg').once('value').then(snap=>{
+    const val = snap.val();
+    if(val && Object.keys(val).length){
+      R.dg = Object.values(val);
+      try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}
+      // Si ya está en la pestaña DG, renderizar
+      const dgPane = document.getElementById('sp-dg');
+      if(dgPane && dgPane.style.display !== 'none'){
+        updateDGStatusBanner();
+        renderDG();
+        autoFiltrarDGPorTienda();
+      } else {
+        updateDGStatusBanner();
+      }
+    }
   }).catch(()=>{
-    try{R=JSON.parse(localStorage.getItem('dr')||'{"rt":[],"dg":[],"rs":[],"req":[]}');}catch(e){R={rt:[],dg:[],rs:[],req:[]};}
-    renderRT();renderDG();renderRS();renderREQ();updateBell();
-    fbSetStatus('err','⚠️ Sin conexión — datos locales','');
+    try{const d=JSON.parse(localStorage.getItem('dr')||'{}');if(d.dg) R.dg=d.dg;}catch(e){}
   });
+
   REF_WK.once('value').then(snap=>{const val=snap.val();WK=val?Object.values(val):[];}).catch(()=>{try{WK=JSON.parse(localStorage.getItem('dw')||'[]');}catch(e){WK=[];}});
-  REF_PV.once('value').then(snap=>{
-    const val=snap.val();PV=val||{};
-    const pc=Object.keys(PV).length;
-    if(pc){const el=document.getElementById('pst');if(el)el.textContent='✅ '+pc+' proveedores';}
-  }).catch(()=>{try{PV=JSON.parse(localStorage.getItem('dp')||'{}');}catch(e){PV={};}});
+  REF_WK.on('value', snap=>{
+    const val=snap.val();
+    const newWK=val?Object.values(val):[];
+    if(JSON.stringify(newWK)!==JSON.stringify(WK)){
+      WK=newWK;
+      try{localStorage.setItem('dw',JSON.stringify(WK));}catch(e){}
+      const consView=document.getElementById('mp-cons');
+      if(consView&&consView.style.display!=='none'){renderConsWeeks&&renderConsWeeks();}
+    }
+  });
+  REF_PV.once('value').then(snap=>{const val=snap.val();PV=val||{};const pc=Object.keys(PV).length;if(pc){const el=document.getElementById('pst');if(el)el.textContent='✅ '+pc+' proveedores';}}).catch(()=>{try{PV=JSON.parse(localStorage.getItem('dp')||'{}');}catch(e){PV={};}});
 }
+
+// Guardar RT en Firebase
+function sRT(){
+  REF_R.child('rt').set(toFbObj(R.rt))
+    .then(()=>fbSetStatus('ok','✅ Guardado RT',new Date().toLocaleString('es-EC')))
+    .catch(()=>fbSetStatus('err','⚠️ Error guardando RT',''));
+  try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}
+}
+
+// Guardar DG en Firebase — escritura atómica, solo el nodo dg
+// sDG: escribe SOLO los registros nuevos/modificados usando update() (no set).
+// update() es una escritura merge: no borra registros de otros dispositivos.
+// Se usa para DG porque múltiples dispositivos escriben concurrentemente.
+function sDG(soloIds){
+  // soloIds: array de IDs a escribir. Si no se pasa, escribe todos los de R.dg.
+  const target = soloIds
+    ? R.dg.filter(r => soloIds.includes(r.id))
+    : R.dg;
+  const patch = {};
+  target.forEach(r => { if(r && r.id) patch[r.id] = r; });
+  if(!Object.keys(patch).length) return;
+  REF_R.child('dg').update(patch)
+    .then(()=>fbSetStatus('ok','✅ Guardado DG',new Date().toLocaleString('es-EC')))
+    .catch(()=>fbSetStatus('err','⚠️ Error guardando DG',''));
+  try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}
+}
+
+// sDGDelete: elimina un registro específico de Firebase DG por su id
+function sDGDelete(id){
+  REF_R.child('dg').child(id).remove()
+    .catch(()=>fbSetStatus('err','⚠️ Error eliminando DG',''));
+  try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}
+}
+
+// Guardar RS en Firebase
+function sRS(){
+  REF_R.child('rs').set(toFbObj(R.rs))
+    .then(()=>fbSetStatus('ok','✅ Guardado RS',new Date().toLocaleString('es-EC')))
+    .catch(()=>fbSetStatus('err','⚠️ Error guardando RS',''));
+  try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}
+}
+
+// Guardar REQ en Firebase
+function sREQ(){
+  REF_R.child('req').set(toFbObj(R.req))
+    .then(()=>fbSetStatus('ok','✅ Guardado REQ',new Date().toLocaleString('es-EC')))
+    .catch(()=>fbSetStatus('err','⚠️ Error guardando REQ',''));
+  try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}
+}
+
+// sR: guarda todo (usado en operaciones que afectan múltiples nodos)
 function sR(){
-  const now=new Date().toLocaleString('es-EC');
-  REF_R.set({rt:toFbObj(R.rt),dg:toFbObj(R.dg),rs:toFbObj(R.rs),req:toFbObj(R.req)})
-    .then(()=>{fbSetStatus('ok','✅ Guardado',now);try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}})
-    .catch(()=>{fbSetStatus('err','⚠️ Error al guardar','');try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}});
+  REF_R.child('rt').set(toFbObj(R.rt));
+  REF_R.child('dg').set(toFbObj(R.dg));
+  REF_R.child('rs').set(toFbObj(R.rs));
+  REF_R.child('req').set(toFbObj(R.req));
+  fbSetStatus('ok','✅ Guardado',new Date().toLocaleString('es-EC'));
+  try{localStorage.setItem('dr',JSON.stringify(R));}catch(e){}
 }
+
 function sW(){REF_WK.set(toFbObj(WK)).catch(()=>{try{localStorage.setItem('dw',JSON.stringify(WK));}catch(e){}});}
+
 function fbSync(){
   fbSetStatus('wait','⏳ Sincronizando...');
   REF_R.once('value').then(snap=>{
@@ -3206,7 +3898,379 @@ function fbSync(){
     renderRT();renderDG();renderRS();renderREQ();updateBell();
     fbSetStatus('ok','✅ Sincronizado',new Date().toLocaleString('es-EC'));showT('🔄 Datos actualizados');
   }).catch(()=>{fbSetStatus('err','⚠️ Sin conexión','');showT('⚠️ No se pudo conectar');});
-  REF_WK.once('value').then(snap=>{const val=snap.val();WK=val?Object.values(val):[];});
+  REF_WK.once('value').then(snap=>{const val=snap.val();WK=val?Object.values(val):[];renderConsWeeks&&renderConsWeeks();});
+}
+
+// ─────────────────────────────────────────────
+// REPORTE FINAL CONSOLIDADO — para el Administrador
+// Exporta un Excel con 4 hojas:
+//   1. Resumen por Tienda
+//   2. Devolución (todas las tiendas)
+//   3. No Devolución (todas las tiendas)
+//   4. Pendientes (sin decisión aún)
+// ─────────────────────────────────────────────
+function exportReporteFinalDG(){
+  const data = R.dg;
+  if(!data.length){ showT('⚠️ Sin datos en Devolución General'); return; }
+
+  // Confirmar — el administrador debe saber que es el reporte final
+  const devs    = data.filter(r => r.decision === 'Devolución');
+  const noDevs  = data.filter(r => r.decision === 'No Devolución');
+  const pends   = data.filter(r => !r.decision || r.decision === 'Revisar en Tiendas' || r.decision === '');
+
+  showT('⏳ Generando Reporte Final...');
+
+  const wb = XLSX.utils.book_new();
+  const fecha = new Date().toLocaleDateString('es-EC').replace(/\//g,'-');
+  const hora  = new Date().toLocaleTimeString('es-EC');
+
+  // ── Hoja 1: Resumen por Tienda ──
+  const tiendaMap = {};
+  data.forEach(r => {
+    const t = r.tienda || '(Sin tienda)';
+    if(!tiendaMap[t]) tiendaMap[t] = {tienda:t, total:0, dev:0, noDev:0, pend:0, pvpDev:0, pvpNoDev:0};
+    tiendaMap[t].total++;
+    const pvpTotal = (r.eans||[]).reduce((s,e)=>{
+      return s + (parseFloat(e.cantidad)||0)*(parseFloat(e.pvp)||0);
+    }, 0);
+    if(r.decision === 'Devolución'){     tiendaMap[t].dev++;   tiendaMap[t].pvpDev   += pvpTotal; }
+    else if(r.decision === 'No Devolución'){ tiendaMap[t].noDev++; tiendaMap[t].pvpNoDev += pvpTotal; }
+    else tiendaMap[t].pend++;
+  });
+
+  const resumen = [
+    ['REPORTE FINAL DE DEVOLUCIÓN GENERAL — DEPRATI', '', '', '', '', '', '', fecha + ' ' + hora],
+    [],
+    ['Tienda','Total Registros','Devolución','No Devolución','Pendientes','% Completado','Valor $ Devolución','Valor $ No Devolución']
+  ];
+  let gDev=0, gNoDev=0, gPend=0, gPvpDev=0, gPvpNoDev=0;
+  STORES.concat(Object.keys(tiendaMap).filter(t=>!STORES.includes(t))).forEach(tienda => {
+    const s = tiendaMap[tienda];
+    if(!s) return;
+    const pct = Math.round(((s.dev+s.noDev)/s.total)*100);
+    resumen.push([
+      s.tienda, s.total, s.dev, s.noDev, s.pend, pct+'%',
+      '$'+s.pvpDev.toFixed(2), '$'+s.pvpNoDev.toFixed(2)
+    ]);
+    gDev+=s.dev; gNoDev+=s.noDev; gPend+=s.pend; gPvpDev+=s.pvpDev; gPvpNoDev+=s.pvpNoDev;
+  });
+  resumen.push([]);
+  resumen.push(['TOTALES', data.length, gDev, gNoDev, gPend,
+    Math.round(((gDev+gNoDev)/data.length)*100)+'%',
+    '$'+gPvpDev.toFixed(2), '$'+gPvpNoDev.toFixed(2)]);
+
+  const wsRes = XLSX.utils.aoa_to_sheet(resumen);
+  wsRes['!cols'] = [24,16,14,16,14,14,20,22].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen por Tienda');
+
+  // ── Función auxiliar para hojas de detalle ──
+  function buildDetailSheet(recs, titulo){
+    const hdr = ['#','Semana','Tienda','DPTO','Código','Proveedor','REF','Sem.Ingreso',
+      'EAN/SKU','Cantidad','PVP s/IVA','PVP Total','Motivo','Decisión','Observaciones',
+      'Tabla Asignación','# Pedido Traslado','Fecha'];
+    const rows = [[titulo], [], hdr];
+    let rn = 0;
+    sortR(recs).forEach(rec => {
+      (rec.eans||[{ean:'',cantidad:'',pvp:''}]).forEach(ean => {
+        rn++;
+        const tot = (parseFloat(ean.cantidad)||0)*(parseFloat(ean.pvp)||0);
+        rows.push([
+          rn, rec.semana||'', rec.tienda||'', rec.dpto||'', rec.codigo||'',
+          rec.proveedor||'', rec.ref||'', rec.semIngreso||'',
+          ean.ean||'', ean.cantidad||'', ean.pvp?'$'+parseFloat(ean.pvp).toFixed(2):'',
+          tot?'$'+tot.toFixed(2):'',
+          rec.motivo||'', rec.decision||'', rec.observaciones||'',
+          rec.tablaAsignacion||'', rec.pedidoTraslado||'', rec.fecha||''
+        ]);
+      });
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [4,14,20,10,14,24,10,12,18,8,12,12,30,18,30,18,18,16].map(w=>({wch:w}));
+    return ws;
+  }
+
+  // Hoja 2: Devoluciones
+  XLSX.utils.book_append_sheet(wb, buildDetailSheet(devs, '📦 DEVOLUCIONES — Reporte Final Deprati ' + fecha), 'Devolución');
+
+  // Hoja 3: No Devoluciones
+  XLSX.utils.book_append_sheet(wb, buildDetailSheet(noDevs, '✅ NO DEVOLUCIONES — Reporte Final Deprati ' + fecha), 'No Devolución');
+
+  // Hoja 4: Pendientes (si existen)
+  if(pends.length){
+    XLSX.utils.book_append_sheet(wb, buildDetailSheet(pends, '⏳ PENDIENTES — Sin decisión al ' + fecha + ' ' + hora), 'Pendientes');
+  }
+
+  XLSX.writeFile(wb, `Deprati_ReporteFinal_DG_${fecha}.xlsx`);
+  showT('📋 Reporte Final exportado — ' + devs.length + ' Dev / ' + noDevs.length + ' No Dev / ' + pends.length + ' Pend');
+}
+
+// ─────────────────────────────────────────────
+// CARGAR CONSOLIDADO EN DEVOLUCIÓN GENERAL
+// Carga un JSON/Excel y lo distribuye a todas las tiendas en R.dg
+// ─────────────────────────────────────────────
+
+// Registros base cargados en DG (antes de distribuir a tiendas)
+// Registros base cargados desde archivo para distribuir a tiendas
+// ─────────────────────────────────────────────
+// DG ADMIN MODE
+// ─────────────────────────────────────────────
+let _dgAdminMode = false;
+
+// Por defecto DG muestra todas las tiendas — el usuario filtra manualmente
+function autoFiltrarDGPorTienda(){
+  // No aplicar filtro automático: mostrar todas las tiendas por defecto
+  // Cada usuario filtrará por su tienda manualmente desde el selector
+}
+
+
+// Actualiza el banner de estado visible para todos
+function updateDGStatusBanner(){
+  const txt = document.getElementById('dg-status-txt');
+  if(!txt) return;
+  const masivos = R.dg.filter(x => x._fromTab === 'dg_masiva');
+  if(!masivos.length){
+    txt.textContent = '📭 Sin registros en Devolución General — usa "🏪 Replicar a Tienda Específica" en Revisión en Tienda.';
+    return;
+  }
+  const conDec  = masivos.filter(x => x.decision && x.decision !== 'Revisar en Tiendas').length;
+  const pend    = masivos.length - conDec;
+  const tiendas = [...new Set(masivos.map(x => x.tienda))].length;
+  const semana  = masivos[0]?.semana || '';
+  txt.textContent = `📦 Devolución General${semana?' — Sem. '+semana:''} · ${tiendas} tienda(s) · ${masivos.length} registros · ${conDec} con decisión · ${pend} pendientes`;
+}
+
+// ─────────────────────────────────────────────
+// CARGAR CONSOLIDADO EN DEVOLUCIÓN GENERAL
+// Un solo paso: leer archivo → distribuir a todas las tiendas → guardar en Firebase
+// Todos los dispositivos reciben los registros automáticamente vía listener
+// ─────────────────────────────────────────────
+
+// ── Cargar archivo y distribuir automáticamente (solo Admin) ──
+function loadConsolDGAuto(inp){
+  const f = inp.files[0]; if(!f) return;
+  const st   = document.getElementById('dg-cst');
+  const cmst = document.getElementById('dg-cmst');
+  st.textContent = '⏳ Leyendo archivo...';
+  if(cmst) cmst.textContent = '';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      let base = [];
+      if(f.name.toLowerCase().endsWith('.json')){
+        let parsed = JSON.parse(e.target.result);
+        if(!Array.isArray(parsed)) parsed = Object.values(parsed);
+        base = parsed.map(rec => ({
+          ...rec,
+          id: uid(),
+          _orig: true,
+          _tab: 'dg_base'
+        }));
+      } else {
+        const wb   = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1}).slice(1);
+        base = rows.filter(r => r.length > 2).map(row => ({
+          id: uid(),
+          semana:      String(row[0]||''),
+          tienda:      String(row[1]||''),
+          dpto:        String(row[2]||''),
+          codigo:      String(row[3]||''),
+          proveedor:   String(row[4]||''),
+          ref:         String(row[5]||''),
+          semIngreso:  String(row[6]||''),
+          eans: [{ean: String(row[7]||''), cantidad: String(row[8]||''), pvp: String(row[9]||'')}],
+          txt: '', motivo: String(row[10]||''), decision: 'Revisar en Tiendas',
+          observaciones: String(row[12]||''), foto2: [], fecha: '',
+          tablaAsignacion: '', pedidoTraslado: '',
+          _tab: 'dg_base', _orig: true
+        }));
+      }
+
+      if(!base.length){
+        st.textContent = '⚠️ Sin registros en el archivo';
+        return;
+      }
+      st.textContent = '✅ ' + base.length + ' registros leídos — distribuyendo...';
+
+      // ── Protección: si ya hay registros con decisiones tomadas, confirmar ──
+      const masivosExistentes = R.dg.filter(x => x._fromTab === 'dg_masiva');
+      const conDecision = masivosExistentes.filter(x =>
+        x.decision && x.decision !== 'Revisar en Tiendas' && x.decision !== ''
+      );
+      if(conDecision.length > 0){
+        const ok = confirm(
+          '⚠️ ATENCIÓN: Ya hay ' + masivosExistentes.length + ' registros distribuidos\n' +
+          'de los cuales ' + conDecision.length + ' tienen decisiones tomadas por tiendas.\n\n' +
+          'Si continúas, se añadirán NUEVOS registros sin borrar los existentes.\n' +
+          '¿Deseas continuar?'
+        );
+        if(!ok){ st.textContent = '↩️ Cancelado'; return; }
+      }
+
+      // ── Distribución inteligente: solo añadir los que no existan aún ──
+      const existingKey = new Set(masivosExistentes.map(x => x.tienda + '||' + x._srcId));
+      const allTiendas  = [...STORES, ...CUSTOM_STORES.filter(s => !STORES.includes(s))];
+      let added = 0;
+
+      allTiendas.forEach(tienda => {
+        base.forEach(orig => {
+          const key = tienda + '||' + orig.id;
+          if(existingKey.has(key)) return; // ya existe, no duplicar
+          const clone = JSON.parse(JSON.stringify(orig));
+          clone.id              = uid();
+          clone.tienda          = tienda;
+          clone._tab            = 'dg';
+          clone._srcId          = orig.id;
+          clone._copy           = true;
+          clone._fromTab        = 'dg_masiva';
+          clone.decision        = 'Revisar en Tiendas';
+          clone.fecha           = '';
+          clone.tablaAsignacion = '';
+          clone.pedidoTraslado  = '';
+          R.dg.push(clone);
+          added++;
+        });
+      });
+
+      if(!added){
+        st.textContent  = '✅ ' + base.length + ' leídos';
+        if(cmst) cmst.textContent = 'ℹ️ Sin cambios — todos ya distribuidos';
+        showT('ℹ️ Todos los registros ya estaban distribuidos');
+        return;
+      }
+
+      // ── Guardar en Firebase → todos los dispositivos reciben via listener ──
+      sDG();
+      st.textContent = '✅ ' + base.length + ' registros · ' + allTiendas.length + ' tiendas · ' + added + ' entradas creadas';
+      if(cmst) cmst.textContent = '✅ ' + added + ' registros en Firebase — todos los dispositivos se actualizan ahora';
+      renderDG();
+      showT('✅ ' + added + ' registros distribuidos · todos los dispositivos se sincronizan automáticamente');
+
+    } catch(ex){
+      st.textContent = '⚠️ Error: ' + ex.message;
+      console.error(ex);
+    }
+  };
+  f.name.toLowerCase().endsWith('.json') ? reader.readAsText(f,'UTF-8') : reader.readAsArrayBuffer(f);
+}
+
+// ─────────────────────────────────────────────
+// REPLICAR A TIENDA ESPECÍFICA
+// Copia los registros originales de RT al nodo DG de esa tienda
+// y los sincroniza vía Firebase con todos los dispositivos.
+// Los registros originales de RT NO se modifican.
+// ─────────────────────────────────────────────
+function openReplicarTienda(){
+  const origs = R.rt.filter(r => r._orig && !r._copy);
+  if(!origs.length){
+    showT('⚠️ No hay registros originales en Revisión en Tienda');
+    return;
+  }
+  // Poblar selector con todas las tiendas
+  const sel = document.getElementById('replicar-tienda-sel');
+  const allTiendas = [...STORES, ...CUSTOM_STORES.filter(s=>!STORES.includes(s))];
+  sel.innerHTML = '<option value="">-- Seleccionar Tienda --</option>' +
+    allTiendas.map(t => {
+      const yaTiene = R.dg.filter(x => x._fromTab==='dg_masiva' && x.tienda===t).length;
+      return `<option value="${t}">${t}${yaTiene?' ('+yaTiene+' ya replicados)':''}</option>`;
+    }).join('');
+  sel.value = '';
+  document.getElementById('replicar-tienda-info').textContent = '';
+  // Actualizar info al cambiar tienda
+  sel.onchange = function(){
+    const t = this.value;
+    if(!t){ document.getElementById('replicar-tienda-info').textContent=''; return; }
+    const existentes = R.dg.filter(x => x._fromTab==='dg_masiva' && x.tienda===t);
+    const conDec = existentes.filter(x => x.decision && x.decision!=='Revisar en Tiendas').length;
+    if(existentes.length){
+      document.getElementById('replicar-tienda-info').textContent =
+        '⚠️ Ya existen ' + existentes.length + ' registros para ' + t +
+        (conDec ? ', de los cuales ' + conDec + ' tienen decisión tomada.' : '. Se añadirán solo los faltantes.');
+    } else {
+      document.getElementById('replicar-tienda-info').textContent =
+        '✅ Se replicarán ' + origs.length + ' registros a ' + t + '.';
+    }
+  };
+  document.getElementById('ov-replicar-tienda').classList.add('show');
+}
+
+function doReplicarTienda(){
+  const tienda = document.getElementById('replicar-tienda-sel').value;
+  if(!tienda){ showT('⚠️ Selecciona una tienda'); return; }
+
+  const origs = R.rt.filter(r => r._orig && !r._copy);
+  if(!origs.length){ showT('⚠️ Sin registros originales'); cOv('ov-replicar-tienda'); return; }
+
+  // Claves ya existentes para esta tienda
+  const existingKey = new Set(
+    R.dg.filter(x => x._fromTab==='dg_masiva' && x.tienda===tienda)
+        .map(x => x._srcId)
+  );
+
+  let added = 0;
+  const nuevosIds = [];
+  origs.forEach(orig => {
+    if(existingKey.has(orig.id)) return; // ya existe, no duplicar
+    const clone = JSON.parse(JSON.stringify(orig));
+    clone.id              = uid();
+    clone.tienda          = tienda;
+    clone._tab            = 'dg';
+    clone._srcId          = orig.id;
+    clone._copy           = true;
+    clone._fromTab        = 'dg_masiva';
+    clone.decision        = 'Revisar en Tiendas';
+    clone.fecha           = '';
+    clone.tablaAsignacion = '';
+    clone.pedidoTraslado  = '';
+    R.dg.push(clone);
+    nuevosIds.push(clone.id);
+    added++;
+  });
+
+  cOv('ov-replicar-tienda');
+
+  if(!added){
+    showT('ℹ️ ' + tienda + ' ya tenía todos los registros replicados');
+    return;
+  }
+
+  // Escribir SOLO los registros nuevos con update() — no toca registros de otras tiendas
+  sDG(nuevosIds);
+  renderDG();
+  showT('✅ ' + added + ' registros replicados a ' + tienda + ' — sincronizando...');
+}
+
+// ─────────────────────────────────────────────
+// BOTÓN ATRÁS MÓVIL — evitar salida accidental
+// ─────────────────────────────────────────────
+(function(){
+  // Solo en PWA/móvil (standalone) o si el UA es móvil
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+                   window.matchMedia('(display-mode: standalone)').matches ||
+                   window.navigator.standalone === true;
+  if(!isMobile) return;
+
+  // Pushear un estado inicial para poder interceptar popstate
+  history.pushState({app: true}, '', window.location.href);
+
+  window.addEventListener('popstate', function(e){
+    // Volver a empujar el estado para que el botón atrás no salga
+    history.pushState({app: true}, '', window.location.href);
+
+    // Mostrar diálogo de confirmación
+    const ov = document.getElementById('ov-salir-app');
+    if(ov) ov.classList.add('show');
+  });
+})();
+
+function confirmarSalirApp(){
+  // Cerrar diálogo y salir realmente
+  document.getElementById('ov-salir-app').classList.remove('show');
+  // Eliminar el estado extra y navegar atrás dos veces para salir
+  history.go(-2);
+}
+function cancelarSalirApp(){
+  document.getElementById('ov-salir-app').classList.remove('show');
 }
 
 // ─────────────────────────────────────────────
@@ -3214,11 +4278,13 @@ function fbSync(){
 // ─────────────────────────────────────────────
 loadStorage();
 buildForm('rt');buildForm('dg');buildForm('rs');buildForm('req');
-// Load OCR async (no bloquea la carga)
+// En móvil, RT visible por defecto
+if(window.innerWidth<=768){
+  switchSub('rt', null);
+  document.getElementById('mbn-ingr')?.classList.add('act');
+}
+// Load OCR
 (()=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js';document.head.appendChild(s);})();
-// Register SW
-if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
-
 </script>
 </body>
 </html>
