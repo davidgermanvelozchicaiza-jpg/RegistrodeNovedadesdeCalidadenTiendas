@@ -1,4 +1,4 @@
-const CACHE_NAME = 'deprati-v15';  // ← incrementar esto fuerza actualización en dispositivos instalados
+const CACHE_NAME = 'deprati-v28';  // ← incrementar esto fuerza actualización en dispositivos instalados
 
 self.addEventListener('install', e => {
   e.waitUntil(
